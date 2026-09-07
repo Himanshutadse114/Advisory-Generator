@@ -1,39 +1,26 @@
-const LIMITS = {
-  editorial: {
-    title: 62,
-    intro: 255,
-    bullet: 145
-  },
-  split: {
-    title: 52,
-    intro: 300,
-    bullet: 155
-  },
-  flow: {
-    title: 60,
-    intro: 245,
-    bullet: 125
-  }
-}
+import { analyseTemplateFit } from './designIntelligence'
 
 function issue(id, label, severity = 'warning') {
   return { id, label, severity }
 }
 
 export function evaluateAdvisory(advisory, template = 'editorial') {
-  const limits = LIMITS[template] || LIMITS.editorial
   const issues = []
 
   if (!advisory.title?.trim()) {
     issues.push(issue('title-empty', 'Add an advisory title.', 'error'))
-  } else if (advisory.title.length > limits.title) {
-    issues.push(issue('title-long', `Shorten the title to about ${limits.title} characters for this layout.`))
   }
 
   if (!advisory.intro?.trim()) {
     issues.push(issue('intro-empty', 'Add a short introduction.', 'error'))
-  } else if (advisory.intro.length > limits.intro) {
-    issues.push(issue('intro-long', 'The introduction is dense for the selected layout. Shorten it or switch templates.'))
+  }
+
+  if (!advisory.sectionOneTitle?.trim()) {
+    issues.push(issue('section-one-title-empty', 'Add the first section heading.', 'error'))
+  }
+
+  if (!advisory.sectionTwoTitle?.trim()) {
+    issues.push(issue('section-two-title-empty', 'Add the second section heading.', 'error'))
   }
 
   const allPoints = [
@@ -44,18 +31,26 @@ export function evaluateAdvisory(advisory, template = 'editorial') {
   allPoints.forEach(({ value, section, index }) => {
     if (!value?.trim()) {
       issues.push(issue(`point-${section}-${index}-empty`, `Section ${section}, point ${index + 1} is empty.`, 'error'))
-    } else if (value.length > limits.bullet) {
-      issues.push(issue(`point-${section}-${index}-long`, `Section ${section}, point ${index + 1} is too long for comfortable reading.`))
     }
   })
 
-  if ((advisory.sectionOneTitle || '').length > 30 || (advisory.sectionTwoTitle || '').length > 30) {
-    issues.push(issue('section-heading-long', 'Keep section headings short so the hierarchy stays clear.'))
+  if ((advisory.sectionOnePoints || []).length !== 4 || (advisory.sectionTwoPoints || []).length !== 4) {
+    issues.push(issue('point-count', 'Each advisory section must contain exactly four points.', 'error'))
   }
+
+  const fit = analyseTemplateFit(advisory, template)
+  fit.overflows.forEach(overflow => {
+    issues.push(issue(
+      overflow.id,
+      `${overflow.label} Use Auto-fit Layout or shorten the copy.`,
+      'error'
+    ))
+  })
 
   const errors = issues.filter(item => item.severity === 'error').length
   const warnings = issues.length - errors
-  const score = Math.max(0, 100 - (errors * 18) - (warnings * 7))
+  const structuralScore = Math.max(0, 100 - (errors * 18) - (warnings * 7))
+  const score = Math.min(structuralScore, fit.score)
 
   let status = 'Excellent'
   if (score < 90) status = 'Good'
@@ -66,6 +61,7 @@ export function evaluateAdvisory(advisory, template = 'editorial') {
     score,
     status,
     issues,
-    canExport: errors === 0
+    canExport: errors === 0,
+    fit
   }
 }
