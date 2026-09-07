@@ -169,7 +169,7 @@ export default function AdminPanel() {
       <form className="admin-form" onSubmit={handleSave}>
         <label className="field"><span>Gemini API key</span><input type="password" autoComplete="new-password" value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder={gemini.maskedKey || 'Paste a new Gemini API key'} /></label>
         <label className="field"><span>Text model</span><input value={model} onChange={event => setModel(event.target.value)} placeholder={DEFAULT_TEXT_MODEL} /></label>
-        <label className="field"><span>Image model</span><input value={imageModel} onChange={event => setImageModel(event.target.value)} placeholder={DEFAULT_IMAGE_MODEL} /></label>
+        <label className="field"><span>Image model (ready for image-generation integration)</span><input value={imageModel} onChange={event => setImageModel(event.target.value)} placeholder={DEFAULT_IMAGE_MODEL} /></label>
         <button className="generate-button" type="submit" disabled={!apiKey.trim() || state.status === 'loading'}><span>{state.status === 'loading' ? 'Saving…' : gemini.configured ? 'Replace API key' : 'Save API key'}</span><small>AES-256-GCM encrypted server storage</small></button>
       </form>
 
@@ -180,7 +180,7 @@ export default function AdminPanel() {
 
       {state.message && <div className={`admin-message ${state.status}`}>{state.message}</div>}
 
-      <div className="admin-security-note"><strong>Security behaviour</strong><p>The key is encrypted on the server, excluded from Git, returned only as a masked suffix and automatically used by both text generation and the configured image-generation model.</p></div>
+      <div className="admin-security-note"><strong>Security behaviour</strong><p>The key is encrypted on the server, excluded from Git and returned only as a masked suffix. It is active for advisory text generation now, and the saved image-model setting is ready for the Gemini image-generation provider we add next.</p></div>
     </section>
   )
 }
