@@ -9,6 +9,7 @@ import {
   getRecommendedTemplate
 } from './lib/advisoryEngine'
 import { generateAdvisoryContent } from './lib/contentService'
+import { getBestFitTemplate } from './lib/designIntelligence'
 import { exportAsPng, exportAsSvg } from './lib/exportAdvisory'
 import { evaluateAdvisory } from './lib/qualityChecker'
 import './quality.css'
@@ -38,7 +39,8 @@ function App() {
   const [topic, setTopic] = useState(initialAdvisory.topic)
   const [audience, setAudience] = useState(initialAdvisory.audience)
   const [advisoryType, setAdvisoryType] = useState(initialAdvisory.advisoryType)
-  const [template, setTemplate] = useState(getRecommendedTemplate(initialAdvisory.category))
+  const initialPreferredTemplate = getRecommendedTemplate(initialAdvisory.category)
+  const [template, setTemplate] = useState(getBestFitTemplate(initialAdvisory, initialPreferredTemplate))
   const [advisory, setAdvisory] = useState(initialAdvisory)
   const [panel, setPanel] = useState('create')
   const [referenceSearch, setReferenceSearch] = useState('')
@@ -63,6 +65,11 @@ function App() {
     }))
   }
 
+  const handleAutoFit = () => {
+    const preferred = getRecommendedTemplate(advisory.category)
+    setTemplate(getBestFitTemplate(advisory, preferred))
+  }
+
   const handleGenerate = async () => {
     if (!topic.trim() || generationState.status === 'loading') return
 
@@ -73,9 +80,10 @@ function App() {
 
     const result = await generateAdvisoryContent({ topic, audience, advisoryType })
     const next = result.advisory
+    const preferred = getRecommendedTemplate(next.category)
 
     setAdvisory(next)
-    setTemplate(getRecommendedTemplate(next.category))
+    setTemplate(getBestFitTemplate(next, preferred))
     setPanel('edit')
 
     if (result.fallback) {
@@ -149,7 +157,7 @@ function App() {
                 disabled={!topic.trim() || generationState.status === 'loading'}
               >
                 <span>{generationState.status === 'loading' ? 'Generating…' : 'Generate advisory'}</span>
-                <small>AI copy + strict schema + recommended layout</small>
+                <small>AI copy + strict schema + measured layout fit</small>
               </button>
 
               <div className={`system-note generation-note ${generationState.status}`}>
@@ -168,7 +176,7 @@ function App() {
               <div className="panel-heading compact">
                 <span className="eyebrow">CONTENT</span>
                 <h2>Edit advisory</h2>
-                <p>Changes update the vector artwork and design-quality score immediately.</p>
+                <p>Changes update the vector artwork and measured design-quality score immediately.</p>
               </div>
 
               <div className={`generation-result ${advisory.generation?.mode || 'local-preview'}`}>
@@ -192,11 +200,14 @@ function App() {
                   <b>{quality.score}</b>
                 </div>
                 {quality.issues.length === 0 ? (
-                  <p className="quality-pass">No content-fit issues detected for this layout.</p>
+                  <p className="quality-pass">Measured text fits the selected layout with no clipped content.</p>
                 ) : (
                   <ul>
                     {quality.issues.slice(0, 4).map(item => <li key={item.id}>{item.label}</li>)}
                   </ul>
+                )}
+                {!quality.fit.fits && (
+                  <button className="quality-autofit" type="button" onClick={handleAutoFit}>Auto-fit layout</button>
                 )}
               </div>
 
@@ -265,11 +276,12 @@ function App() {
                     {item.name}
                   </button>
                 ))}
+                <button className="auto-fit-button" type="button" onClick={handleAutoFit}>Auto-fit</button>
               </div>
             </div>
             <div className={`quality-chip ${quality.score < 75 ? 'warning' : ''}`}>
               <span className="quality-dot" />
-              {quality.score}/100 · {quality.status}
+              {quality.fit.fits ? 'Fit verified' : 'Overflow detected'} · {quality.score}/100
             </div>
           </div>
 
@@ -282,6 +294,7 @@ function App() {
           <div className="statusbar">
             <span>{advisory.category}</span>
             <span>{advisory.generation?.provider || 'local-rules'}</span>
+            <span>{quality.fit.fits ? 'Measured fit verified' : 'Measured overflow'}</span>
             <span>Quality {quality.score}/100</span>
             <span>1080 × 1350</span>
             <span>SVG master</span>
