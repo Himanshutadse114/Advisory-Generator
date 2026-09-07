@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AdvisoryCanvas from './components/AdvisoryCanvas'
+import AdminPanel from './components/AdminPanel'
 import { advisoryReferences } from './data/references'
 import { BRAND_PROFILES, createCustomBrand, getBrandProfile, sanitiseBrandProfile } from './data/brands'
 import {
@@ -18,6 +19,7 @@ import { createEditorState, EDITOR_LAYERS, resetAllLayers, resetLayerState, upda
 import useDocumentHistory from './hooks/useDocumentHistory'
 import './quality.css'
 import './advanced-editor.css'
+import './admin.css'
 
 const VISUAL_FAMILIES = [
   ['auto', 'Auto from references'],
@@ -193,7 +195,7 @@ function App() {
         <aside className="sidebar wide-sidebar">
           <nav className="panel-tabs expanded" aria-label="Editor panels">
             {[
-              ['create', 'Create'], ['edit', 'Content'], ['design', 'Design'], ['brand', 'Brand'], ['references', 'Refs']
+              ['create', 'Create'], ['edit', 'Content'], ['design', 'Design'], ['brand', 'Brand'], ['references', 'Refs'], ['admin', 'Admin']
             ].map(([id, label]) => <button key={id} className={panel === id ? 'active' : ''} onClick={() => setPanel(id)}>{label}</button>)}
           </nav>
 
@@ -204,7 +206,7 @@ function App() {
               <label className="field"><span>Audience</span><select value={audience} onChange={event => setAudience(event.target.value)}>{AUDIENCES.map(item => <option key={item}>{item}</option>)}</select></label>
               <label className="field"><span>Advisory type</span><select value={advisoryType} onChange={event => setAdvisoryType(event.target.value)}>{ADVISORY_TYPES.map(item => <option key={item}>{item}</option>)}</select></label>
               <button className="generate-button" type="button" onClick={handleGenerate} disabled={!topic.trim() || generationState.status === 'loading'}><span>{generationState.status === 'loading' ? 'Generating…' : 'Generate advisory'}</span><small>AI copy + reference direction + automatic fit</small></button>
-              <div className={`system-note generation-note ${generationState.status}`}><strong>AI content service</strong><p>{generationState.status === 'idle' ? 'Uses server-side Gemini or Vertex AI when configured, with deterministic fallback if the provider is unavailable.' : generationState.message}</p></div>
+              <div className={`system-note generation-note ${generationState.status}`}><strong>AI content service</strong><p>{generationState.status === 'idle' ? 'Uses server-side Gemini or Vertex AI when configured, with deterministic fallback if the provider is unavailable. Gemini credentials can also be managed from the Admin tab.' : generationState.message}</p></div>
             </section>
           )}
 
@@ -257,6 +259,8 @@ function App() {
               <div className="reference-grid enriched">{filteredReferences.map(reference => <a key={reference.id} className="reference-card" href={reference.url} target="_blank" rel="noreferrer"><img src={reference.url} alt={reference.title} loading="lazy" /><span>{reference.title}</span><small>{reference.category}<br />{reference.visualFamily} · {reference.suggestedTemplate}</small></a>)}</div>
             </section>
           )}
+
+          {panel === 'admin' && <AdminPanel />}
         </aside>
 
         <section className="studio">
