@@ -8,6 +8,7 @@ import {
   generateAdvisory,
   getRecommendedTemplate
 } from './lib/advisoryEngine'
+import { generateAdvisoryContent } from './lib/contentService'
 import { exportAsPng, exportAsSvg } from './lib/exportAdvisory'
 import { evaluateAdvisory } from './lib/qualityChecker'
 import './quality.css'
@@ -17,6 +18,11 @@ const initialAdvisory = generateAdvisory({
   audience: 'All Employees',
   advisoryType: 'Internal Advisory'
 })
+initialAdvisory.generation = {
+  mode: 'local-preview',
+  provider: 'local-rules',
+  model: null
+}
 
 function EditablePoint({ value, onChange, index }) {
   return (
@@ -36,6 +42,7 @@ function App() {
   const [advisory, setAdvisory] = useState(initialAdvisory)
   const [panel, setPanel] = useState('create')
   const [referenceSearch, setReferenceSearch] = useState('')
+  const [generationState, setGenerationState] = useState({ status: 'idle', message: '' })
 
   const quality = useMemo(() => evaluateAdvisory(advisory, template), [advisory, template])
 
@@ -56,11 +63,32 @@ function App() {
     }))
   }
 
-  const handleGenerate = () => {
-    const next = generateAdvisory({ topic, audience, advisoryType })
+  const handleGenerate = async () => {
+    if (!topic.trim() || generationState.status === 'loading') return
+
+    setGenerationState({
+      status: 'loading',
+      message: 'Generating structured advisory copy…'
+    })
+
+    const result = await generateAdvisoryContent({ topic, audience, advisoryType })
+    const next = result.advisory
+
     setAdvisory(next)
     setTemplate(getRecommendedTemplate(next.category))
     setPanel('edit')
+
+    if (result.fallback) {
+      setGenerationState({
+        status: 'fallback',
+        message: result.error || 'AI was unavailable, so controlled local copy was used.'
+      })
+    } else {
+      setGenerationState({
+        status: 'success',
+        message: `Generated with ${next.generation?.provider || 'AI'}${next.generation?.model ? ` · ${next.generation.model}` : ''}.`
+      })
+    }
   }
 
   return (
@@ -92,7 +120,7 @@ function App() {
               <div className="panel-heading">
                 <span className="eyebrow">GENERATE</span>
                 <h1>Create an advisory</h1>
-                <p>Start with the topic. The engine structures the copy and selects an appropriate design composition.</p>
+                <p>Start with the topic. The AI service structures the copy and the design engine selects an appropriate composition.</p>
               </div>
 
               <label className="field">
@@ -114,14 +142,23 @@ function App() {
                 </select>
               </label>
 
-              <button className="generate-button" type="button" onClick={handleGenerate} disabled={!topic.trim()}>
-                <span>Generate advisory</span>
-                <small>Structured copy + recommended layout</small>
+              <button
+                className="generate-button"
+                type="button"
+                onClick={handleGenerate}
+                disabled={!topic.trim() || generationState.status === 'loading'}
+              >
+                <span>{generationState.status === 'loading' ? 'Generating…' : 'Generate advisory'}</span>
+                <small>AI copy + strict schema + recommended layout</small>
               </button>
 
-              <div className="system-note">
-                <strong>Controlled generation</strong>
-                <p>Copy is generated into a fixed advisory schema so layouts remain predictable. A server-side AI service can replace the local copy engine without changing the editor.</p>
+              <div className={`system-note generation-note ${generationState.status}`}>
+                <strong>AI content service</strong>
+                <p>
+                  {generationState.status === 'idle'
+                    ? 'Generation uses a server-side Gemini or Vertex AI provider when configured. If it is unavailable, the local controlled engine keeps the editor usable.'
+                    : generationState.message}
+                </p>
               </div>
             </section>
           )}
@@ -132,6 +169,18 @@ function App() {
                 <span className="eyebrow">CONTENT</span>
                 <h2>Edit advisory</h2>
                 <p>Changes update the vector artwork and design-quality score immediately.</p>
+              </div>
+
+              <div className={`generation-result ${advisory.generation?.mode || 'local-preview'}`}>
+                <span>Content source</span>
+                <strong>
+                  {advisory.generation?.mode === 'ai'
+                    ? 'AI structured generation'
+                    : advisory.generation?.mode === 'local-fallback'
+                      ? 'Local fallback'
+                      : 'Local preview'}
+                </strong>
+                {generationState.status === 'fallback' && <small>{generationState.message}</small>}
               </div>
 
               <div className={`quality-summary ${quality.score < 75 ? 'attention' : ''}`}>
@@ -232,6 +281,7 @@ function App() {
 
           <div className="statusbar">
             <span>{advisory.category}</span>
+            <span>{advisory.generation?.provider || 'local-rules'}</span>
             <span>Quality {quality.score}/100</span>
             <span>1080 × 1350</span>
             <span>SVG master</span>
