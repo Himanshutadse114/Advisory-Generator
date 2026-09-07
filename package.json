@@ -1,14 +1,15 @@
 {
   "name": "innvikta-advisory-generator",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "api": "node server/index.js",
     "build": "vite build",
     "verify:logic": "node scripts/verify-phases.mjs",
-    "verify": "npm run verify:logic && npm run build",
+    "verify:admin": "node scripts/verify-admin-security.mjs",
+    "verify": "npm run verify:logic && npm run verify:admin && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
