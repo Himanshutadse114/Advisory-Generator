@@ -1,30 +1,79 @@
 # Innvikta Advisory Generator
 
-A controlled advisory design engine for creating polished cybersecurity awareness advisories from structured content and reusable visual layouts.
+A controlled AI-assisted design studio for creating polished cybersecurity awareness advisories as editable vector artwork.
 
-## Current status
+The generator is intentionally not an unrestricted AI poster tool. AI creates structured advisory copy, approved reference artwork directs the visual treatment, deterministic layouts control typography and spacing, reusable SVG scenes provide illustration and a quality gate protects the final export.
 
-The repository now contains the first working generator foundation plus the Phase 2 AI content-service implementation:
+## Status
 
-- React + Vite editor
-- Structured advisory content schema
-- Server-side Gemini / Vertex AI content generation
-- Strict JSON structured-output contract
-- Automatic local-rule fallback when AI is unavailable
-- Topic classification for common cybersecurity themes
-- Three vector-safe advisory layouts
-- Live editable title, introduction and guidance points
-- Existing WebP advisories exposed as the reference library
-- Live design-quality score with content-fit warnings
-- Export blocking when required content is missing
-- SVG export
+All eight planned product phases are implemented in `main`:
+
+1. Design engine foundation
+2. AI content service
+3. Design intelligence
+4. Reference intelligence
+5. Vector illustration system
+6. Client branding
+7. Advanced editor
+8. Quality assurance
+
+See `docs/PHASE_STATUS.md` for the detailed acceptance matrix.
+
+## Main capabilities
+
+- React + Vite advisory design studio
+- Server-side Gemini / Vertex AI generation
+- Strict 4 + 4 advisory JSON structure
+- UK-English awareness writing rules
+- Deterministic local fallback when AI is unavailable
+- Three approved vector compositions: Editorial Hero, Split Story and Threat Flow
+- Measured text fitting and automatic layout selection
+- Automatic copy tightening when content does not fit safely
+- 25 approved advisory references with structured visual metadata
+- Topic-aware reference ranking and art direction
+- Reusable SVG illustration scenes for major cybersecurity categories
+- Direct layer selection and dragging
+- Layer X/Y, scaling, visibility and locking
+- Undo / redo
+- Grid snapping and alignment guides
+- Client brand presets and custom branding
+- Custom logo embedding
+- Contrast, overflow, safe-zone, scale and collision checks
+- Export gating when blocking design issues exist
+- Clean SVG export for Illustrator editing
 - High-resolution PNG export
-- Innvikta design tokens separated from generation logic
-- GitHub Actions build and server-syntax verification
+- Print-sized SVG export
+- GitHub Actions verification
 
-The original WebP files in the repository remain untouched and act as the visual reference set.
+## How generation works
 
-See `docs/PHASE_STATUS.md` for the evidence-based phase audit.
+```text
+Topic + audience + advisory type
+              ↓
+      Gemini / Vertex AI
+              ↓
+       Strict JSON schema
+              ↓
+  Invalid/unavailable? ──→ Local controlled fallback
+              ↓
+      Reference ranking
+              ↓
+   Visual family + layout direction
+              ↓
+      Measured layout fit
+              ↓
+      Copy tightening if needed
+              ↓
+      Reusable SVG scene
+              ↓
+        Client branding
+              ↓
+      Advanced layer editor
+              ↓
+        Quality assurance
+              ↓
+      SVG / PNG / Print SVG
+```
 
 ## Run locally
 
@@ -34,11 +83,9 @@ Install dependencies:
 npm install
 ```
 
-Copy `.env.example` to `.env` and configure one AI authentication option.
+Copy `.env.example` to `.env` and configure an AI provider if live AI generation is required.
 
-### Option A — Vertex AI / service account
-
-Set:
+### Vertex AI / service account
 
 ```text
 GOOGLE_CLOUD_PROJECT=your-project-id
@@ -47,150 +94,172 @@ GOOGLE_APPLICATION_CREDENTIALS=/secure/path/service-account.json
 GEMINI_MODEL=gemini-2.5-flash
 ```
 
-The server uses Google Application Default Credentials. Do not commit a service-account JSON file to this repository.
+Use Google Application Default Credentials and keep the service-account file outside this repository.
 
-### Option B — Gemini API key
-
-Set:
+### Gemini API key
 
 ```text
 GEMINI_API_KEY=your-key
 GEMINI_MODEL=gemini-2.5-flash
 ```
 
-Run the content API in one terminal:
+Start the content API:
 
 ```bash
 npm run api
 ```
 
-Run the editor in another terminal:
+Start the editor in another terminal:
 
 ```bash
 npm run dev
 ```
 
-Vite proxies `/api/*` requests to the local content API on port `8787`.
+Vite proxies `/api/*` to the local API server on port `8787`.
 
-If the AI service is unavailable or not configured, generation automatically falls back to the deterministic local content engine and the UI labels the result as a fallback.
+Without credentials the application remains fully usable and generation automatically switches to the deterministic local advisory engine.
 
-Production frontend build:
+## Verification
+
+Run the complete repository verification:
 
 ```bash
-npm run build
-npm run preview
+npm run verify
 ```
 
-## Current architecture
+This runs phase-level logic assertions followed by the production Vite build.
+
+Individual commands:
+
+```bash
+npm run verify:logic
+npm run build
+```
+
+GitHub Actions runs dependency installation, server syntax checks, phase logic checks and the frontend production build on every push to `main` and on pull requests.
+
+A live third-party Gemini/Vertex request is a deployment acceptance check because production credentials are intentionally not committed to GitHub.
+
+## Architecture
 
 ```text
 server/
-├── advisoryPrompt.js           # UK-English writing rules + strict response schema
-├── geminiProvider.js           # Gemini / Vertex AI server-only provider
-└── index.js                    # Content API + health endpoint
+├── advisoryPrompt.js            # UK-English rules + strict AI schema
+├── geminiProvider.js            # Gemini / Vertex AI provider
+└── index.js                     # Content API + health endpoint
+
+scripts/
+└── verify-phases.mjs            # Cross-phase logic acceptance tests
 
 src/
 ├── components/
-│   └── AdvisoryCanvas.jsx      # Vector artboard + three layouts
+│   ├── AdvisoryCanvas.jsx       # Layered SVG renderer/editor canvas
+│   └── IllustrationLibrary.jsx  # Reusable cybersecurity SVG scenes
+│
 ├── data/
-│   └── references.js           # Existing advisory reference library
+│   ├── brands.js                # Brand profiles and custom branding
+│   └── references.js            # 25 tagged approved advisories
+│
+├── hooks/
+│   └── useDocumentHistory.js    # Undo / redo history
+│
 ├── lib/
-│   ├── advisoryEngine.js       # Local fallback, classification and template rules
-│   ├── contentService.js       # AI-first client + validation + fallback
-│   ├── exportAdvisory.js       # SVG and PNG export
-│   └── qualityChecker.js       # Layout-specific content-fit validation
-├── App.jsx                     # Generator/editor workspace
-├── main.jsx
+│   ├── advisoryEngine.js        # Local fallback and classification
+│   ├── contentService.js        # AI-first client + schema validation
+│   ├── designIntelligence.js    # Measurement, fitting and copy tightening
+│   ├── editorState.js           # Production layer state
+│   ├── exportAdvisory.js        # SVG / PNG / Print SVG export
+│   ├── qualityChecker.js        # Content, brand and geometry QA
+│   └── referenceIntelligence.js # Reference matching and art direction
+│
+├── App.jsx                      # Full design studio
+├── advanced-editor.css
 ├── quality.css
-└── styles.css
+├── styles.css
+└── main.jsx
 ```
 
-## Generation flow
+## Reference intelligence
 
-```text
-Topic + audience + advisory type
-              ↓
-      Server-side AI service
-              ↓
-      Strict JSON validation
-              ↓
-      AI success? ── no ──→ Local controlled fallback
-              │
-             yes
-              ↓
-   Structured advisory schema
-              ↓
-    Recommended composition
-              ↓
-       SVG design renderer
-              ↓
-      Live quality checker
-              ↓
-        Live content editor
-              ↓
-          SVG / PNG export
-```
+Each approved WebP reference in the repository is tagged with:
 
-## AI writing rules
+- cybersecurity category
+- visual family
+- recommended layout
+- information density
+- illustration position
+- topic keywords
+- section structure
 
-The Phase 2 prompt enforces the key advisory conventions:
+The generator ranks those references against the current topic and uses the strongest matches to recommend the illustration family and initial composition. The user can still override the result from the Design panel.
 
-- UK English
-- Plain awareness-focused language
-- Two to three short introductory sentences
-- Exactly four explanatory/risk points
-- Exactly four safety/best-practice points
-- Similar visual length across bullets
-- No invented client reporting addresses or internal policy details
-- Audience-specific wording
-- No unrestricted control over typography or placement
+## Vector illustration system
 
-The browser never receives Gemini or Vertex AI credentials.
+The artwork is built from reusable vector primitives and scenes rather than asking an image model to generate the complete advisory. Current scene families include:
 
-## Why the generator uses SVG
+- phishing and messaging
+- identity and authentication
+- financial fraud
+- malware and device security
+- social engineering
+- data and privacy
+- network security
+- AI and emerging technology
+- general cybersecurity
 
-The advisory itself is rendered as structured vector artwork instead of asking an image model to create a complete poster. This keeps typography, spacing, colours and branding deterministic and allows the final SVG to be opened and edited in tools such as Adobe Illustrator.
+This keeps typography and branding deterministic while still giving different threats distinct visual treatments.
 
-AI image generation should later be used only for individual illustration assets where needed. Text and layout should remain controlled by the design engine.
+## Client branding
 
-## Phase roadmap
+Brand profiles control:
 
-### Phase 1 — Design engine foundation
+- primary and secondary colours
+- text and background colours
+- soft panel and line colours
+- typography stack
+- footer wording
+- logo text
+- uploaded logo artwork
 
-Foundation complete: editor, structured schema, SVG layouts, reference gallery and exports are implemented.
+Uploaded logos are embedded directly in the exported vector artwork so the final file does not depend on an external URL.
 
-### Phase 2 — AI content service
+## Advanced editor
 
-Implementation complete in code. Production acceptance still requires a live configured Gemini or Vertex AI generation test. The local engine remains the fallback.
+The production layers are:
 
-### Phase 3 — Deeper design intelligence
+- Header
+- Title
+- Introduction
+- Illustration
+- How It Works
+- Best Practices
+- Footer
 
-Partially implemented. Next add real text measurement, overflow detection, automatic title shortening, spacing validation and automatic template fallback.
+Users can select layers directly on the artboard or through the layer panel, drag unlocked layers, set X/Y coordinates, resize scalable layers, hide/show them, lock them, undo/redo changes and reset individual or complete layouts. Header and footer are protected by default.
 
-### Phase 4 — Reference analysis
+## Quality assurance
 
-The reference gallery exists but the designs still need structured tagging by category, composition, illustration placement, text density and section structure. Those tags will rank visual families for new topics.
+Export readiness combines:
 
-### Phase 5 — Illustration system
+- required content
+- exactly four points in each advisory section
+- measured text overflow
+- approved layer scale range
+- canvas safe-zone checks
+- required-layer visibility
+- known layer collisions
+- body-text contrast
+- accent contrast warnings
+- inverse panel contrast
 
-Build a reusable SVG asset library for devices, employees, attackers, banking, email, mobile, AI, privacy and security concepts. Compose scenes from approved vector assets rather than creating entire posters with generative images.
+Blocking errors disable export until the advisory is corrected.
 
-### Phase 6 — Client branding
+## Illustrator workflow
 
-Support multiple client brand profiles containing logo, colours, fonts and footer rules without changing the underlying advisory content.
-
-### Phase 7 — Advanced editor
-
-Add drag, resize, alignment guides, layers, element locking, undo/redo and asset replacement while preserving template safety rules.
-
-### Phase 8 — Advanced quality assurance
-
-Extend the current checker to score measured overflow, contrast, whitespace, alignment, logo safe area, asset quality and final export readiness.
+SVG is the design master. The file can be opened in Adobe Illustrator for final designer adjustments while retaining vector text and shapes. PNG is available for direct distribution and the print SVG provides a physical-size version for production workflows.
 
 ## Design principle
 
-The generator should behave like an art-directed design system:
+**AI writes → references direct → approved layouts compose → vectors illustrate → brand rules apply → user edits → QA validates → professional export.**
 
-**AI writes and classifies → approved layouts compose → vector assets illustrate → rules validate → user edits → professional export.**
-
-The AI should not have unrestricted control of typography or placement.
+The AI never has unrestricted control over final typography, placement or branding.
