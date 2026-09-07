@@ -1,5 +1,10 @@
 function serialiseSvg(svgElement) {
   const clone = svgElement.cloneNode(true)
+  clone.querySelectorAll('[data-editor-ui]').forEach(node => node.remove())
+  clone.querySelectorAll('[data-editor-layer]').forEach(node => {
+    node.removeAttribute('style')
+    node.removeAttribute('data-editor-layer')
+  })
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
   clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
   return new XMLSerializer().serializeToString(clone)
@@ -17,10 +22,7 @@ function downloadBlob(blob, filename) {
 }
 
 function safeName(value) {
-  return (value || 'advisory')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+  return (value || 'advisory').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
 export function exportAsSvg(svgElement, title) {
@@ -32,7 +34,6 @@ export function exportAsSvg(svgElement, title) {
 
 export function exportAsPng(svgElement, title, scale = 2) {
   if (!svgElement) return
-
   const source = serialiseSvg(svgElement)
   const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -49,11 +50,17 @@ export function exportAsPng(svgElement, title, scale = 2) {
     context.scale(scale, scale)
     context.drawImage(image, 0, 0, width, height)
     URL.revokeObjectURL(url)
-    canvas.toBlob(pngBlob => {
-      if (pngBlob) downloadBlob(pngBlob, `${safeName(title)}.png`)
-    }, 'image/png', 1)
+    canvas.toBlob(pngBlob => { if (pngBlob) downloadBlob(pngBlob, `${safeName(title)}.png`) }, 'image/png', 1)
   }
 
   image.onerror = () => URL.revokeObjectURL(url)
   image.src = url
+}
+
+export function exportPrintSvg(svgElement, title) {
+  if (!svgElement) return
+  const source = serialiseSvg(svgElement)
+  const printSource = source.replace('<svg ', '<svg width="216mm" height="270mm" ')
+  const blob = new Blob([printSource], { type: 'image/svg+xml;charset=utf-8' })
+  downloadBlob(blob, `${safeName(title)}-print.svg`)
 }
