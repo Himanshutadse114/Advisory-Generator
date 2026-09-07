@@ -11,6 +11,8 @@ export const EDITOR_LAYERS = [
 export function createEditorState() {
   return {
     selectedLayer: 'title',
+    snapToGrid: true,
+    showGuides: true,
     layers: Object.fromEntries(EDITOR_LAYERS.map(layer => [layer.id, {
       x: 0,
       y: 0,
@@ -24,16 +26,7 @@ export function createEditorState() {
 export function updateLayerState(editor, layerId, patch) {
   const current = editor.layers[layerId]
   if (!current) return editor
-  return {
-    ...editor,
-    layers: {
-      ...editor.layers,
-      [layerId]: {
-        ...current,
-        ...patch
-      }
-    }
-  }
+  return { ...editor, layers: { ...editor.layers, [layerId]: { ...current, ...patch } } }
 }
 
 export function resetLayerState(editor, layerId) {
@@ -43,8 +36,6 @@ export function resetLayerState(editor, layerId) {
 }
 
 export function resetAllLayers(editor) {
-  return {
-    ...createEditorState(),
-    selectedLayer: editor?.selectedLayer || 'title'
-  }
+  const fresh = createEditorState()
+  return { ...fresh, selectedLayer: editor?.selectedLayer || 'title', snapToGrid: editor?.snapToGrid !== false, showGuides: editor?.showGuides !== false }
 }
