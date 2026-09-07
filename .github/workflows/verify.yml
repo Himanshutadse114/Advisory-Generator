@@ -26,5 +26,8 @@ jobs:
           node --check server/geminiProvider.js
           node --check server/advisoryPrompt.js
 
+      - name: Verify phase logic
+        run: npm run verify:logic
+
       - name: Build frontend
         run: npm run build
