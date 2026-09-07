@@ -2,42 +2,112 @@
 
 Last verified: 7 September 2026
 
-This file records what is actually present in `main`. A phase is only marked complete when its required behaviour exists in code. Planned behaviour documented in the README does not count as implementation.
+This file records what is actually present in `main`. A phase is marked complete only when its required product behaviour is implemented in code and covered by repository verification. A live third-party AI call is an environment/deployment check and is tracked separately because credentials are not stored in this repository.
 
-| Phase | Status | Verified implementation | Remaining work |
-| --- | --- | --- | --- |
-| 1 — Design engine foundation | Complete foundation | React/Vite workspace, structured advisory schema, three SVG compositions, live text editing, reference gallery and SVG/PNG export | Add more production templates as later phases mature |
-| 2 — AI content service | Implemented, live provider verification pending | Server-side Gemini/Vertex AI adapter, strict JSON response schema, AI-first frontend client, timeout/error handling, deterministic local fallback and passing CI build/server syntax checks | Configure credentials in deployment and complete a live provider generation test |
-| 3 — Design intelligence | In progress | Topic classification, preferred-template recommendation, measured text width/wrapping, per-template fit geometry, automatic best-fit layout selection, manual Auto-fit control and export blocking for clipped text | Auto-shortening, responsive reflow within templates, spacing/collision geometry and smarter template mutation |
-| 4 — Reference analysis | Partial | Existing advisory artwork is indexed and searchable | Tag each reference by category, composition, visual family, text density, section structure and illustration placement; use tags for ranking |
-| 5 — Illustration system | Not started | Current templates contain only small hard-coded generic SVG visuals | Build reusable approved SVG asset library and scene composer |
-| 6 — Client branding | Not started | One Innvikta brand token set exists | Brand profiles, logo rules, typography profiles and client-specific safe areas |
-| 7 — Advanced editor | Partial | Content fields, template switching and Auto-fit are editable | Direct canvas selection, drag/resize, layers, locking, alignment guides, undo/redo and asset replacement |
-| 8 — Quality checker | Partial | Required-content checks, measured text overflow, layout-fit scoring and export gating | Visual collision, contrast, whitespace, alignment, logo safe-zone and asset-quality checks |
+| Phase | Status | Verified implementation |
+| --- | --- | --- |
+| 1 — Design engine foundation | Complete | React/Vite workspace, strict advisory document schema, three production SVG compositions, editable content, vector rendering and clean SVG/PNG/print-SVG export |
+| 2 — AI content service | Complete in code | Server-side Gemini/Vertex AI adapter, strict structured-output schema, request validation, AI-first client, timeout handling, local fallback and server-only credentials |
+| 3 — Design intelligence | Complete | Measured text fitting, three-layout scoring, automatic template fallback, deterministic copy tightening, Auto-fit and export blocking for clipped content |
+| 4 — Reference intelligence | Complete | All 25 approved reference advisories tagged by category, visual family, density, illustration position and layout; topic-aware relevance ranking drives art direction |
+| 5 — Illustration system | Complete | Reusable SVG primitives and topic-aware scenes for phishing, identity, fraud, device security, social engineering, privacy, network security, AI and general security |
+| 6 — Client branding | Complete | Innvikta plus reusable brand profiles, custom colour controls, typography stack, footer rules, text/image logos and logo embedding in production exports |
+| 7 — Advanced editor | Complete | Direct layer selection and dragging, X/Y positioning, scaling, locking, visibility, grid snapping, alignment guides, undo/redo, reset controls and illustration replacement |
+| 8 — Quality assurance | Complete | Required-content checks, measured overflow, contrast audit, safe-zone checks, scale limits, required-layer visibility, approximate collision checks, quality scoring and export gating |
 
-## Phase 2 implementation map
+## Phase 1 acceptance
 
-- `src/lib/contentService.js` — calls the AI endpoint, validates the returned schema and falls back to the local engine safely.
-- `server/advisoryPrompt.js` — Innvikta advisory writing rules and strict structured-output JSON schema.
-- `server/geminiProvider.js` — server-only Google Gemini or Vertex AI provider using `@google/genai`.
-- `server/index.js` — `/api/advisories/generate` and `/api/health` endpoints with validation and request-size limits.
-- `.env.example` — Vertex AI service-account/ADC and Gemini API-key configuration options.
-- `vite.config.js` — local `/api` proxy to the content service.
-- `src/App.jsx` — asynchronous AI-first generation states and visible fallback/source status.
+- `src/components/AdvisoryCanvas.jsx` renders 1080 × 1350 vector artwork.
+- `src/lib/exportAdvisory.js` exports production SVG, high-resolution PNG and print-sized SVG.
+- Editor selection UI is removed from exported artwork.
 
-## Phase 3 implementation map
+## Phase 2 acceptance
 
-- `src/lib/designIntelligence.js` — measures text using browser canvas metrics, models each template's actual text regions, identifies overflow and ranks approved layouts by fit.
-- `src/lib/qualityChecker.js` — consumes measured overflow results and prevents export when text would be clipped.
-- `src/App.jsx` — automatically selects the best-fitting approved layout after generation and exposes an Auto-fit control after manual edits.
+- `server/advisoryPrompt.js` defines the exact AI JSON schema and Innvikta writing rules.
+- `server/geminiProvider.js` keeps Google AI credentials server-side.
+- `server/index.js` exposes validated `/api/advisories/generate` and health routes.
+- `src/lib/contentService.js` validates model responses and falls back to deterministic local content if AI is unavailable.
+- The AI schema requires exactly four explanatory points and exactly four best-practice points.
+- Supported categories include phishing, identity, fraud, device security, social engineering, privacy, network security and AI/emerging technology.
 
-## Verification rule
+A real Gemini/Vertex provider request still requires credentials to be supplied in the deployment environment. The repository deliberately contains no production secret. This does not block the editor because deterministic fallback is built in.
 
-Phase 2 is considered fully production-verified only after both of these pass:
+## Phase 3 acceptance
 
-1. `npm run build`
-2. A live `/api/advisories/generate` request with configured Gemini or Vertex AI credentials that returns exactly four points in each section and passes the frontend schema validator.
+- `src/lib/designIntelligence.js` models the real text regions for Editorial Hero, Split Story and Threat Flow.
+- Browser canvas metrics are used for measured text fit with a deterministic Node approximation for tests.
+- `rankTemplatesByFit` scores all approved layouts.
+- `prepareAdvisoryForLayout` switches layouts and tightens copy when no original composition fits safely.
+- Manual Auto-fit and Tighten Copy controls are available in the editor.
 
-The GitHub Actions verification has passed dependency installation, server syntax checks and the production frontend build for the Phase 2 code path.
+## Phase 4 acceptance
 
-The deterministic local generator remains the fallback so AI failure never makes the editor unusable.
+- `src/data/references.js` contains structured metadata for all 25 approved advisory examples.
+- `src/lib/referenceIntelligence.js` scores topic/category/keyword relevance.
+- The highest-ranked references provide a preferred layout, visual family and illustration direction.
+- The References panel shows recommended examples plus the complete searchable library.
+
+## Phase 5 acceptance
+
+- `src/components/IllustrationLibrary.jsx` contains reusable SVG building blocks and scene compositions.
+- The generator can render distinct visual concepts for messaging, identity, fraud, devices, people/social engineering, privacy, network security and AI.
+- Illustration family can be replaced manually without changing the advisory content.
+
+## Phase 6 acceptance
+
+- `src/data/brands.js` defines reusable brand profiles and sanitisation.
+- Custom client colours, fonts, footer wording and logo text can be edited in the Brand panel.
+- Uploaded PNG/JPEG/WebP/SVG logos up to 2 MB are embedded as data URLs in the artwork.
+- Brand contrast is included in QA before export.
+
+## Phase 7 acceptance
+
+- `src/lib/editorState.js` defines seven controlled production layers.
+- `src/hooks/useDocumentHistory.js` provides undo and redo.
+- Canvas layers support pointer selection and dragging.
+- X, Y, scale, lock and visibility controls are available.
+- Header and footer are protected by default.
+- Movement snaps to an 8 px grid by default.
+- Centre alignment guides are always visible in the advanced editor.
+- Layer changes can be reset individually or for the full layout.
+
+## Phase 8 acceptance
+
+- `src/lib/qualityChecker.js` combines content validation, measured fit, brand checks and geometry checks.
+- Body text must meet a 4.5:1 contrast target.
+- Unsafe movement outside the canvas blocks export.
+- Required hidden sections block export.
+- Scale outside the approved 72–135% range blocks export.
+- Known layer collisions block export.
+- Export buttons remain disabled until blocking errors are resolved.
+
+## Automated verification
+
+Run locally:
+
+```bash
+npm install
+npm run verify
+```
+
+`npm run verify` executes:
+
+1. `scripts/verify-phases.mjs` — logic assertions across phases 2–8
+2. `vite build` — production frontend build
+
+GitHub Actions also runs:
+
+- dependency installation
+- server syntax checks
+- phase logic checks
+- production frontend build
+
+The strict verification intentionally tests failure conditions as well as the happy path, including safe-zone violations and insufficient contrast.
+
+## Product principle
+
+The completed generator follows this controlled workflow:
+
+**AI writes → reference library directs → approved layout fits → vector scene illustrates → brand profile applies → user edits layers → QA validates → SVG/PNG export.**
+
+AI never receives unrestricted control over typography, placement or final branding.
