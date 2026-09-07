@@ -1,12 +1,9 @@
-import { advisoryReferences } from '../data/references'
+import { advisoryReferences } from '../data/references.js'
 
 const normalise = value => String(value || '').toLowerCase()
 
 function tokenise(value) {
-  return normalise(value)
-    .replace(/[^a-z0-9& ]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
+  return normalise(value).replace(/[^a-z0-9& ]/g, ' ').split(/\s+/).filter(Boolean)
 }
 
 function overlapScore(topicTokens, values) {
@@ -16,7 +13,6 @@ function overlapScore(topicTokens, values) {
 
 export function rankReferences(advisory, limit = 5) {
   const topicTokens = tokenise(`${advisory.topic} ${advisory.title} ${advisory.category}`)
-
   return advisoryReferences
     .map(reference => {
       let score = 0
@@ -24,11 +20,7 @@ export function rankReferences(advisory, limit = 5) {
       if (normalise(advisory.category).includes(normalise(reference.category).split(' ')[0])) score += 8
       score += overlapScore(topicTokens, [reference.title, ...reference.keywords])
       if (reference.density === 'medium') score += 2
-
-      return {
-        ...reference,
-        relevanceScore: score
-      }
+      return { ...reference, relevanceScore: score }
     })
     .sort((a, b) => b.relevanceScore - a.relevanceScore || a.title.localeCompare(b.title))
     .slice(0, limit)
@@ -36,14 +28,7 @@ export function rankReferences(advisory, limit = 5) {
 
 export function getReferenceDirection(advisory) {
   const ranked = rankReferences(advisory, 3)
-  if (!ranked.length) {
-    return {
-      template: null,
-      visualFamily: 'general-security',
-      illustrationPosition: 'right',
-      references: []
-    }
-  }
+  if (!ranked.length) return { template: null, visualFamily: 'general-security', illustrationPosition: 'right', references: [] }
 
   const weighted = key => {
     const counts = new Map()
