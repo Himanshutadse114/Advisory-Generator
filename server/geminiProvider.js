@@ -1,12 +1,24 @@
 import { GoogleGenAI } from '@google/genai'
 import { ADVISORY_RESPONSE_SCHEMA, buildAdvisoryPrompt } from './advisoryPrompt.js'
+import { getRuntimeGeminiConfig } from './secretStore.js'
 
 const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+const DEFAULT_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image'
 const DEFAULT_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'global'
 
-function createClient() {
+async function createClient() {
+  const runtime = await getRuntimeGeminiConfig()
   const project = process.env.GOOGLE_CLOUD_PROJECT
-  const apiKey = process.env.GEMINI_API_KEY
+  const apiKey = runtime?.apiKey || process.env.GEMINI_API_KEY
+
+  if (runtime?.apiKey) {
+    return {
+      client: new GoogleGenAI({ apiKey: runtime.apiKey }),
+      authMode: 'admin-gemini-api-key',
+      model: runtime.model || DEFAULT_MODEL,
+      imageModel: runtime.imageModel || DEFAULT_IMAGE_MODEL
+    }
+  }
 
   if (project) {
     return {
@@ -15,19 +27,23 @@ function createClient() {
         project,
         location: DEFAULT_LOCATION
       }),
-      authMode: 'vertex-ai'
+      authMode: 'vertex-ai',
+      model: DEFAULT_MODEL,
+      imageModel: DEFAULT_IMAGE_MODEL
     }
   }
 
   if (apiKey) {
     return {
       client: new GoogleGenAI({ apiKey }),
-      authMode: 'gemini-api-key'
+      authMode: 'gemini-api-key',
+      model: DEFAULT_MODEL,
+      imageModel: DEFAULT_IMAGE_MODEL
     }
   }
 
   throw new Error(
-    'AI credentials are not configured. Set GOOGLE_CLOUD_PROJECT with Application Default Credentials or set GEMINI_API_KEY.'
+    'AI credentials are not configured. Add a Gemini API key in Admin Settings, set GOOGLE_CLOUD_PROJECT with Application Default Credentials or set GEMINI_API_KEY.'
   )
 }
 
@@ -48,11 +64,11 @@ function parseResponseText(response) {
 }
 
 export async function generateWithGemini(request) {
-  const { client, authMode } = createClient()
+  const { client, authMode, model } = await createClient()
   const prompt = buildAdvisoryPrompt(request)
 
   const response = await client.models.generateContent({
-    model: DEFAULT_MODEL,
+    model,
     contents: prompt,
     config: {
       temperature: 0.45,
@@ -64,7 +80,56 @@ export async function generateWithGemini(request) {
 
   return {
     advisory: parseResponseText(response),
-    provider: authMode === 'vertex-ai' ? 'google-vertex-ai' : 'google-gemini',
-    model: DEFAULT_MODEL
+    provider: authMode === 'vertex-ai' ? 'google-vertex-ai' : (authMode === 'admin-gemini-api-key' ? 'google-gemini-admin' : 'google-gemini'),
+    model
+  }
+}
+
+export async function getGeminiProviderStatus() {
+  const runtime = await getRuntimeGeminiConfig()
+  if (runtime?.apiKey) {
+    return {
+      configured: true,
+      source: 'admin-panel',
+      provider: 'google-gemini',
+      model: runtime.model || DEFAULT_MODEL,
+      imageModel: runtime.imageModel || DEFAULT_IMAGE_MODEL,
+      last4: runtime.apiKey.slice(-4),
+      updatedAt: runtime.updatedAt || null
+    }
+  }
+
+  if (process.env.GOOGLE_CLOUD_PROJECT) {
+    return {
+      configured: true,
+      source: 'environment',
+      provider: 'google-vertex-ai',
+      model: DEFAULT_MODEL,
+      imageModel: DEFAULT_IMAGE_MODEL,
+      last4: null,
+      updatedAt: null
+    }
+  }
+
+  if (process.env.GEMINI_API_KEY) {
+    return {
+      configured: true,
+      source: 'environment',
+      provider: 'google-gemini',
+      model: DEFAULT_MODEL,
+      imageModel: DEFAULT_IMAGE_MODEL,
+      last4: process.env.GEMINI_API_KEY.slice(-4),
+      updatedAt: null
+    }
+  }
+
+  return {
+    configured: false,
+    source: 'none',
+    provider: 'not-configured',
+    model: DEFAULT_MODEL,
+    imageModel: DEFAULT_IMAGE_MODEL,
+    last4: null,
+    updatedAt: null
   }
 }
