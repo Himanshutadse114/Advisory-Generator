@@ -12,6 +12,8 @@ The repository now contains the first working generator foundation:
 - Three vector-safe advisory layouts
 - Live editable title, introduction and guidance points
 - Existing WebP advisories exposed as the reference library
+- Live design-quality score with content-fit warnings
+- Export blocking when required content is missing
 - SVG export
 - High-resolution PNG export
 - Innvikta design tokens separated from generation logic
@@ -42,9 +44,11 @@ src/
 │   └── references.js           # Existing advisory reference library
 ├── lib/
 │   ├── advisoryEngine.js       # Content schema, classification and copy rules
-│   └── exportAdvisory.js       # SVG and PNG export
+│   ├── exportAdvisory.js       # SVG and PNG export
+│   └── qualityChecker.js       # Layout-specific content-fit validation
 ├── App.jsx                     # Generator/editor workspace
 ├── main.jsx
+├── quality.css
 └── styles.css
 ```
 
@@ -60,6 +64,8 @@ Topic + audience + advisory type
     Recommended composition
               ↓
        SVG design renderer
+              ↓
+      Live quality checker
               ↓
         Live content editor
               ↓
@@ -78,9 +84,9 @@ AI image generation should later be used only for individual illustration assets
 
 Replace or augment the current local rule engine with a backend AI service that returns the exact existing advisory schema. Keep the local engine as a fallback and test fixture.
 
-### Phase 3 — Design intelligence
+### Phase 3 — Deeper design intelligence
 
-Add text-fit measurement, overflow detection, spacing validation, title shortening and automatic template fallback.
+The first quality-scoring layer is implemented. Next add real text measurement, overflow detection, automatic title shortening, spacing validation and automatic template fallback.
 
 ### Phase 4 — Reference analysis
 
@@ -98,9 +104,9 @@ Support multiple client brand profiles containing logo, colours, fonts and foote
 
 Add drag, resize, alignment guides, layers, element locking, undo/redo and asset replacement while preserving template safety rules.
 
-### Phase 8 — Quality checker
+### Phase 8 — Advanced quality assurance
 
-Score generated advisories for overflow, contrast, whitespace, alignment, logo safe area and content density before export.
+Extend the current checker to score contrast, whitespace, alignment, logo safe area, asset quality and final export readiness.
 
 ## Design principle
 
