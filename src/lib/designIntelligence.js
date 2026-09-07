@@ -27,7 +27,6 @@ let measureContext = null
 function getMeasureContext() {
   if (measureContext) return measureContext
   if (typeof document === 'undefined') return null
-
   const canvas = document.createElement('canvas')
   measureContext = canvas.getContext('2d')
   return measureContext
@@ -41,7 +40,6 @@ function approximateWidth(text, fontSize, weight) {
 function measureWidth(text, spec) {
   const context = getMeasureContext()
   if (!context) return approximateWidth(text, spec.fontSize, spec.weight)
-
   context.font = `${spec.weight || 400} ${spec.fontSize}px Inter, Arial, sans-serif`
   return context.measureText(text).width
 }
@@ -49,22 +47,16 @@ function measureWidth(text, spec) {
 export function measureWrappedLines(text, spec) {
   const words = String(text || '').trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return []
-
   const lines = []
   let line = ''
-
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word
-
-    if (measureWidth(candidate, spec) <= spec.width || !line) {
-      line = candidate
-      continue
+    if (measureWidth(candidate, spec) <= spec.width || !line) line = candidate
+    else {
+      lines.push(line)
+      line = word
     }
-
-    lines.push(line)
-    line = word
   }
-
   if (line) lines.push(line)
   return lines
 }
@@ -72,29 +64,13 @@ export function measureWrappedLines(text, spec) {
 function inspectField(value, spec, id, label) {
   const lines = measureWrappedLines(value, spec)
   const excessLines = Math.max(0, lines.length - spec.maxLines)
-
-  return {
-    id,
-    label,
-    lines: lines.length,
-    maxLines: spec.maxLines,
-    excessLines,
-    overflow: excessLines > 0
-  }
+  return { id, label, lines: lines.length, maxLines: spec.maxLines, excessLines, overflow: excessLines > 0 }
 }
 
 function inspectHeading(value, spec, id, label) {
   const width = measureWidth(value, spec)
   const overflow = width > spec.width
-
-  return {
-    id,
-    label,
-    lines: overflow ? 2 : 1,
-    maxLines: 1,
-    excessLines: overflow ? 1 : 0,
-    overflow
-  }
+  return { id, label, lines: overflow ? 2 : 1, maxLines: 1, excessLines: overflow ? 1 : 0, overflow }
 }
 
 export function analyseTemplateFit(advisory, template = 'editorial') {
@@ -107,45 +83,21 @@ export function analyseTemplateFit(advisory, template = 'editorial') {
   ]
 
   ;(advisory.sectionOnePoints || []).slice(0, 4).forEach((point, index) => {
-    checks.push(inspectField(
-      point,
-      spec.sectionOnePoint,
-      `measured-section-one-${index}`,
-      `Section 1, point ${index + 1} exceeds its measured text area.`
-    ))
+    checks.push(inspectField(point, spec.sectionOnePoint, `measured-section-one-${index}`, `Section 1, point ${index + 1} exceeds its measured text area.`))
   })
-
   ;(advisory.sectionTwoPoints || []).slice(0, 4).forEach((point, index) => {
-    checks.push(inspectField(
-      point,
-      spec.sectionTwoPoint,
-      `measured-section-two-${index}`,
-      `Section 2, point ${index + 1} exceeds its measured text area.`
-    ))
+    checks.push(inspectField(point, spec.sectionTwoPoint, `measured-section-two-${index}`, `Section 2, point ${index + 1} exceeds its measured text area.`))
   })
 
   const overflows = checks.filter(check => check.overflow)
   const excessLines = overflows.reduce((sum, check) => sum + check.excessLines, 0)
   const score = Math.max(0, 100 - (overflows.length * 12) - (excessLines * 5))
-
-  return {
-    template,
-    score,
-    fits: overflows.length === 0,
-    overflows,
-    checks
-  }
+  return { template, score, fits: overflows.length === 0, overflows, checks }
 }
 
 export function rankTemplatesByFit(advisory, preferredTemplate = 'editorial') {
   return Object.keys(TEMPLATE_SPECS)
-    .map(template => {
-      const fit = analyseTemplateFit(advisory, template)
-      return {
-        ...fit,
-        preferred: template === preferredTemplate
-      }
-    })
+    .map(template => ({ ...analyseTemplateFit(advisory, template), preferred: template === preferredTemplate }))
     .sort((a, b) => {
       if (a.fits !== b.fits) return a.fits ? -1 : 1
       if (a.score !== b.score) return b.score - a.score
@@ -156,6 +108,63 @@ export function rankTemplatesByFit(advisory, preferredTemplate = 'editorial') {
 
 export function getBestFitTemplate(advisory, preferredTemplate = 'editorial') {
   return rankTemplatesByFit(advisory, preferredTemplate)[0]?.template || preferredTemplate
+}
+
+const fillerPatterns = [
+  /\bvery\b/gi,
+  /\breally\b/gi,
+  /\bin order to\b/gi,
+  /\bas soon as possible\b/gi,
+  /\bthat may be\b/gi,
+  /\bwhich may be\b/gi,
+  /\bplease make sure to\b/gi
+]
+
+function cleanSentence(value) {
+  let text = String(value || '').replace(/\s+/g, ' ').trim()
+  fillerPatterns.forEach(pattern => { text = text.replace(pattern, '') })
+  return text.replace(/\s{2,}/g, ' ').replace(/\s+([,.])/g, '$1').trim()
+}
+
+function shortenToWords(value, maxWords) {
+  const cleaned = cleanSentence(value)
+  const words = cleaned.split(/\s+/).filter(Boolean)
+  if (words.length <= maxWords) return cleaned
+  const shortened = words.slice(0, maxWords).join(' ').replace(/[,:;]$/, '')
+  return `${shortened}.`
+}
+
+function tightenPoint(value) {
+  return shortenToWords(value, 18)
+}
+
+export function tightenAdvisoryCopy(advisory) {
+  return {
+    ...advisory,
+    title: shortenToWords(advisory.title, 9).replace(/\.$/, ''),
+    intro: shortenToWords(advisory.intro, 34),
+    sectionOneTitle: shortenToWords(advisory.sectionOneTitle, 4).replace(/\.$/, ''),
+    sectionTwoTitle: shortenToWords(advisory.sectionTwoTitle, 4).replace(/\.$/, ''),
+    sectionOnePoints: (advisory.sectionOnePoints || []).map(tightenPoint),
+    sectionTwoPoints: (advisory.sectionTwoPoints || []).map(tightenPoint),
+    fitAdjusted: true
+  }
+}
+
+export function prepareAdvisoryForLayout(advisory, preferredTemplate = 'editorial') {
+  const initialRanking = rankTemplatesByFit(advisory, preferredTemplate)
+  if (initialRanking[0]?.fits) {
+    return { advisory, template: initialRanking[0].template, tightened: false, ranking: initialRanking }
+  }
+
+  const tightened = tightenAdvisoryCopy(advisory)
+  const ranking = rankTemplatesByFit(tightened, preferredTemplate)
+  return {
+    advisory: tightened,
+    template: ranking[0]?.template || preferredTemplate,
+    tightened: true,
+    ranking
+  }
 }
 
 export function getTemplateFitSpecs() {
