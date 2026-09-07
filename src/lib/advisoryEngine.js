@@ -1,52 +1,18 @@
 export const BRAND = {
-  name: 'Innvikta',
-  primary: '#F36C21',
-  primaryDark: '#D95312',
-  ink: '#1D1D1F',
-  muted: '#6B6B70',
-  cream: '#FFF6EF',
-  paper: '#FFFCF9',
-  line: '#E8DED6',
-  success: '#247A5A',
-  danger: '#B73E3E'
+  name: 'Innvikta', primary: '#F36C21', primaryDark: '#D95312', ink: '#1D1D1F', muted: '#6B6B70', cream: '#FFF6EF', paper: '#FFFCF9', line: '#E8DED6', success: '#247A5A', danger: '#B73E3E'
 }
 
-export const ADVISORY_TYPES = [
-  'Internal Advisory',
-  'External Advisory',
-  'Executive Advisory'
-]
-
-export const AUDIENCES = [
-  'All Employees',
-  'Senior Executives',
-  'Finance Teams',
-  'IT & Security Teams',
-  'Customers'
-]
-
+export const ADVISORY_TYPES = ['Internal Advisory', 'External Advisory', 'Executive Advisory']
+export const AUDIENCES = ['All Employees', 'Senior Executives', 'Finance Teams', 'IT & Security Teams', 'Customers']
 export const TEMPLATES = [
-  {
-    id: 'editorial',
-    name: 'Editorial Hero',
-    description: 'Large visual statement with balanced two-column guidance.'
-  },
-  {
-    id: 'split',
-    name: 'Split Story',
-    description: 'Strong side-by-side composition for threats and actions.'
-  },
-  {
-    id: 'flow',
-    name: 'Threat Flow',
-    description: 'Explains how an attack progresses before showing safeguards.'
-  }
+  { id: 'editorial', name: 'Editorial Hero', description: 'Large visual statement with balanced two-column guidance.' },
+  { id: 'split', name: 'Split Story', description: 'Strong side-by-side composition for threats and actions.' },
+  { id: 'flow', name: 'Threat Flow', description: 'Explains how an attack progresses before showing safeguards.' }
 ]
 
 const topicRules = [
   {
-    category: 'Phishing & Messaging',
-    keywords: ['phish', 'smish', 'vish', 'email', 'attachment', 'qr', 'quish', 'message'],
+    category: 'Phishing & Messaging', keywords: ['phish', 'smish', 'vish', 'email', 'attachment', 'qr', 'quish', 'message'],
     how: [
       'An attacker sends a convincing message that appears to come from a trusted person or organisation.',
       'The message creates urgency, curiosity or fear to encourage an immediate response.',
@@ -61,8 +27,7 @@ const topicRules = [
     ]
   },
   {
-    category: 'Identity & Access',
-    keywords: ['identity', 'mfa', 'password', 'credential', 'account', 'login', 'authentication'],
+    category: 'Identity & Access', keywords: ['identity', 'mfa', 'password', 'credential', 'account', 'login', 'authentication'],
     how: [
       'Attackers attempt to obtain or misuse credentials linked to a genuine user account.',
       'Repeated prompts, fake login pages or impersonation may be used to pressure the user.',
@@ -77,8 +42,7 @@ const topicRules = [
     ]
   },
   {
-    category: 'Financial Fraud',
-    keywords: ['fraud', 'money', 'payment', 'bank', 'tax', 'mule', 'invoice', 'refund', 'contest', 'prize'],
+    category: 'Financial Fraud', keywords: ['fraud', 'money', 'payment', 'bank', 'tax', 'mule', 'invoice', 'refund', 'contest', 'prize'],
     how: [
       'A convincing offer, payment request or financial message is presented as genuine.',
       'The attacker uses urgency, authority or an attractive reward to lower suspicion.',
@@ -93,8 +57,7 @@ const topicRules = [
     ]
   },
   {
-    category: 'Malware & Device Security',
-    keywords: ['malware', 'virus', 'device', 'mobile', 'juice', 'application', 'app', 'usb'],
+    category: 'Malware & Device Security', keywords: ['malware', 'virus', 'device', 'mobile', 'juice', 'application', 'app', 'usb'],
     how: [
       'Malicious software or unsafe access can be introduced through an untrusted file, app or connection.',
       'The threat may attempt to monitor activity, steal information or change device behaviour.',
@@ -109,8 +72,7 @@ const topicRules = [
     ]
   },
   {
-    category: 'Social Engineering',
-    keywords: ['social engineering', 'pretext', 'impersonat', 'helpline', 'support', 'quid pro quo', 'ceo'],
+    category: 'Social Engineering', keywords: ['social engineering', 'pretext', 'impersonat', 'helpline', 'support', 'quid pro quo', 'ceo'],
     how: [
       'An attacker creates a believable identity, story or situation to gain trust.',
       'Authority, helpfulness, urgency or familiarity is used to influence the target.',
@@ -125,8 +87,7 @@ const topicRules = [
     ]
   },
   {
-    category: 'Data & Privacy',
-    keywords: ['privacy', 'data', 'pii', 'personal information', 'confidential', 'cyberstalk'],
+    category: 'Data & Privacy', keywords: ['privacy', 'data', 'pii', 'personal information', 'confidential', 'cyberstalk'],
     how: [
       'Personal or confidential information is collected, exposed or used beyond its intended purpose.',
       'Attackers may combine information from several sources to build a convincing profile.',
@@ -138,6 +99,36 @@ const topicRules = [
       'Check privacy settings and limit unnecessary information on public platforms.',
       'Use approved systems when storing, processing or sending sensitive information.',
       'Report accidental disclosure or suspicious use of information as soon as possible.'
+    ]
+  },
+  {
+    category: 'Network Security', keywords: ['wifi', 'wi-fi', 'network', 'man in the middle', 'mitm', 'hotspot', 'router'],
+    how: [
+      'An unsafe or impersonated network can place an attacker between a user and the service being accessed.',
+      'Traffic may be observed, redirected or altered when a connection is not properly protected.',
+      'Fake hotspots can imitate trusted network names and encourage users to connect without checking.',
+      'Sensitive information can be exposed when insecure networks are used for confidential activity.'
+    ],
+    safe: [
+      'Use approved or trusted networks for work and sensitive online activity.',
+      'Confirm public network names with the venue before connecting to them.',
+      'Avoid sensitive transactions when a connection appears unusual or insecure.',
+      'Report unexpected certificate warnings, redirects or network behaviour promptly.'
+    ]
+  },
+  {
+    category: 'AI & Emerging Technology', keywords: ['ai', 'artificial intelligence', 'genai', 'generative ai', 'chatbot', 'bot', 'deepfake', 'synthetic'],
+    how: [
+      'AI tools can process prompts, files or conversations that may contain sensitive business information.',
+      'Generated content can be inaccurate, manipulated or convincingly imitate a real person.',
+      'Unapproved tools may handle information in ways that do not match organisational requirements.',
+      'Attackers can use AI-generated content to make phishing, impersonation and fraud more convincing.'
+    ],
+    safe: [
+      'Use only approved AI tools for work and follow the organisation’s data-handling requirements.',
+      'Do not enter confidential, personal or restricted information into unapproved AI services.',
+      'Verify important AI-generated information before using it for business decisions.',
+      'Treat realistic synthetic messages, audio or video as unverified until independently confirmed.'
     ]
   }
 ]
@@ -158,14 +149,14 @@ const genericRule = {
   ]
 }
 
-const normaliseTopic = (topic) => topic.trim().replace(/\s+/g, ' ')
+const normaliseTopic = topic => String(topic || '').trim().replace(/\s+/g, ' ')
 
 export function classifyTopic(topic) {
   const value = normaliseTopic(topic).toLowerCase()
   return topicRules.find(rule => rule.keywords.some(keyword => value.includes(keyword))) || genericRule
 }
 
-function createIntro(topic, category, audience) {
+function createIntro(topic, audience) {
   const audiencePhrase = audience === 'Customers' ? 'customers' : 'employees'
   return `${topic} can use familiar communication, technology or behaviour to create a convincing situation. Understanding the warning signs helps ${audiencePhrase} recognise the risk early and respond safely.`
 }
@@ -173,7 +164,6 @@ function createIntro(topic, category, audience) {
 export function generateAdvisory({ topic, audience = AUDIENCES[0], advisoryType = ADVISORY_TYPES[0] }) {
   const cleanTopic = normaliseTopic(topic || 'Cybersecurity Awareness')
   const rule = classifyTopic(cleanTopic)
-
   return {
     id: `adv-${Date.now()}`,
     topic: cleanTopic,
@@ -182,7 +172,7 @@ export function generateAdvisory({ topic, audience = AUDIENCES[0], advisoryType 
     audience,
     advisoryType,
     category: rule.category,
-    intro: createIntro(cleanTopic, rule.category, audience),
+    intro: createIntro(cleanTopic, audience),
     sectionOneTitle: 'How It Works',
     sectionOnePoints: [...rule.how],
     sectionTwoTitle: 'Best Practices',
@@ -191,8 +181,8 @@ export function generateAdvisory({ topic, audience = AUDIENCES[0], advisoryType 
   }
 }
 
-export function getRecommendedTemplate(category) {
-  if (category.includes('Financial') || category.includes('Phishing')) return 'flow'
+export function getRecommendedTemplate(category = '') {
+  if (category.includes('Financial') || category.includes('Phishing') || category.includes('Network')) return 'flow'
   if (category.includes('Identity') || category.includes('Social')) return 'split'
   return 'editorial'
 }
