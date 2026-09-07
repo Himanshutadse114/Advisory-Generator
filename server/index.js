@@ -1,5 +1,15 @@
 import http from 'node:http'
-import { generateWithGemini } from './geminiProvider.js'
+import { generateWithGemini, getGeminiProviderStatus } from './geminiProvider.js'
+import { clearRuntimeGeminiConfig, saveRuntimeGeminiConfig } from './secretStore.js'
+import {
+  createAdminSession,
+  destroyAdminSession,
+  isAdminAuthenticated,
+  isAdminConfigured,
+  makeClearSessionCookie,
+  makeSessionCookie,
+  requireAdmin
+} from './adminAuth.js'
 
 const PORT = Number(process.env.ADVISORY_API_PORT || 8787)
 const MAX_BODY_BYTES = 64 * 1024
@@ -18,11 +28,13 @@ const ALLOWED_TYPES = new Set([
   'Executive Advisory'
 ])
 
-function writeJson(response, status, payload) {
+function writeJson(response, status, payload, headers = {}) {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    'X-Content-Type-Options': 'nosniff'
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    ...headers
   })
   response.end(JSON.stringify(payload))
 }
@@ -67,6 +79,24 @@ function validateRequest(payload) {
   return { topic, audience, advisoryType }
 }
 
+function assertAdminMutation(request) {
+  requireAdmin(request)
+  if (request.headers['x-admin-request'] !== '1') {
+    const error = new Error('Invalid admin request.')
+    error.statusCode = 403
+    throw error
+  }
+}
+
+function writeApiError(response, error, fallbackMessage = 'Request failed.') {
+  const message = error?.message || fallbackMessage
+  const configurationError = /credentials|GOOGLE_CLOUD_PROJECT|GEMINI_API_KEY|ADMIN_PASSWORD|encryption/i.test(message)
+  const clientError = /required|supported|characters|valid JSON|too large|valid Gemini API key|invalid admin request/i.test(message)
+  const status = error?.statusCode || (clientError ? 400 : (configurationError ? 503 : 500))
+  console.error('[advisory-api]', message)
+  writeJson(response, status, { error: message })
+}
+
 async function handleGenerate(request, response) {
   try {
     const payload = await readJson(request)
@@ -74,13 +104,90 @@ async function handleGenerate(request, response) {
     const result = await generateWithGemini(input)
     writeJson(response, 200, result)
   } catch (error) {
-    const message = error?.message || 'Unable to generate advisory content.'
-    const configurationError = /credentials|GOOGLE_CLOUD_PROJECT|GEMINI_API_KEY/i.test(message)
-    const clientError = /required|supported|characters|valid JSON|too large/i.test(message)
-    const status = clientError ? 400 : (configurationError ? 503 : 500)
+    writeApiError(response, error, 'Unable to generate advisory content.')
+  }
+}
 
-    console.error('[advisory-api]', message)
-    writeJson(response, status, { error: message })
+async function handleAdminLogin(request, response) {
+  try {
+    const payload = await readJson(request)
+    const password = typeof payload?.password === 'string' ? payload.password : ''
+    const token = createAdminSession(request, password)
+    const provider = await getGeminiProviderStatus()
+    writeJson(response, 200, { authenticated: true, provider }, { 'Set-Cookie': makeSessionCookie(token) })
+  } catch (error) {
+    writeApiError(response, error, 'Unable to sign in.')
+  }
+}
+
+async function handleAdminSettings(request, response) {
+  try {
+    requireAdmin(request)
+    const provider = await getGeminiProviderStatus()
+    writeJson(response, 200, {
+      authenticated: true,
+      adminConfigured: isAdminConfigured(),
+      gemini: {
+        configured: provider.configured,
+        source: provider.source,
+        provider: provider.provider,
+        model: provider.model,
+        imageModel: provider.imageModel,
+        maskedKey: provider.last4 ? `••••••••${provider.last4}` : null,
+        updatedAt: provider.updatedAt
+      }
+    })
+  } catch (error) {
+    writeApiError(response, error, 'Unable to load admin settings.')
+  }
+}
+
+async function handleSaveGeminiSettings(request, response) {
+  try {
+    assertAdminMutation(request)
+    const payload = await readJson(request)
+    await saveRuntimeGeminiConfig({
+      apiKey: payload?.apiKey,
+      model: payload?.model,
+      imageModel: payload?.imageModel
+    })
+    const provider = await getGeminiProviderStatus()
+    writeJson(response, 200, {
+      saved: true,
+      gemini: {
+        configured: true,
+        source: provider.source,
+        provider: provider.provider,
+        model: provider.model,
+        imageModel: provider.imageModel,
+        maskedKey: provider.last4 ? `••••••••${provider.last4}` : null,
+        updatedAt: provider.updatedAt
+      }
+    })
+  } catch (error) {
+    writeApiError(response, error, 'Unable to save Gemini settings.')
+  }
+}
+
+async function handleDeleteGeminiSettings(request, response) {
+  try {
+    assertAdminMutation(request)
+    await clearRuntimeGeminiConfig()
+    const provider = await getGeminiProviderStatus()
+    writeJson(response, 200, {
+      removed: true,
+      gemini: {
+        configured: provider.configured,
+        source: provider.source,
+        provider: provider.provider,
+        model: provider.model,
+        imageModel: provider.imageModel,
+        maskedKey: provider.last4 ? `••••••••${provider.last4}` : null,
+        updatedAt: provider.updatedAt
+      }
+    })
+  } catch (error) {
+    writeApiError(response, error, 'Unable to remove Gemini settings.')
   }
 }
 
@@ -88,11 +195,53 @@ const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`)
 
   if (request.method === 'GET' && url.pathname === '/api/health') {
+    try {
+      const provider = await getGeminiProviderStatus()
+      writeJson(response, 200, {
+        ok: true,
+        service: 'advisory-content-api',
+        provider: provider.provider,
+        configured: provider.configured,
+        source: provider.source,
+        adminConfigured: isAdminConfigured()
+      })
+    } catch (error) {
+      writeApiError(response, error, 'Unable to read service health.')
+    }
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/session') {
     writeJson(response, 200, {
-      ok: true,
-      service: 'advisory-content-api',
-      provider: process.env.GOOGLE_CLOUD_PROJECT ? 'google-vertex-ai' : (process.env.GEMINI_API_KEY ? 'google-gemini' : 'not-configured')
+      authenticated: isAdminAuthenticated(request),
+      adminConfigured: isAdminConfigured()
     })
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/login') {
+    await handleAdminLogin(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/logout') {
+    destroyAdminSession(request)
+    writeJson(response, 200, { authenticated: false }, { 'Set-Cookie': makeClearSessionCookie() })
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/settings') {
+    await handleAdminSettings(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/settings/gemini') {
+    await handleSaveGeminiSettings(request, response)
+    return
+  }
+
+  if (request.method === 'DELETE' && url.pathname === '/api/admin/settings/gemini') {
+    await handleDeleteGeminiSettings(request, response)
     return
   }
 
