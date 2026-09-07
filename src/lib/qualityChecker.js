@@ -1,5 +1,5 @@
-import { analyseTemplateFit } from './designIntelligence'
-import { getBrandProfile } from '../data/brands'
+import { analyseTemplateFit } from './designIntelligence.js'
+import { getBrandProfile } from '../data/brands.js'
 
 function issue(id, label, severity = 'warning', group = 'content') { return { id, label, severity, group } }
 
