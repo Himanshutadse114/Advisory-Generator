@@ -25,9 +25,14 @@ jobs:
           node --check server/index.js
           node --check server/geminiProvider.js
           node --check server/advisoryPrompt.js
+          node --check server/secretStore.js
+          node --check server/adminAuth.js
 
       - name: Verify phase logic
         run: npm run verify:logic
+
+      - name: Verify admin secret security
+        run: npm run verify:admin
 
       - name: Build frontend
         run: npm run build
