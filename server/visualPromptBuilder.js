@@ -38,6 +38,7 @@ ROLE OF THE INPUT IMAGES
 - ${SIMILARITY_GUIDANCE[similarity] || SIMILARITY_GUIDANCE.medium}
 - ${CONCEPT_GUIDANCE[concept] || CONCEPT_GUIDANCE.balanced}
 - Create a fresh composition for the new topic. Do not trace, duplicate or merely replace text in a reference.
+- Do not reproduce an exact reference layout.
 - Do not drift into dark cyberpunk, neon-blue hacker art, generic AI poster styling, excessive glow, clutter or stock-photo aesthetics unless that treatment is genuinely present in the references.
 - The output must feel like another piece from the same professional advisory design series.
 
