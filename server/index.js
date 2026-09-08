@@ -4,6 +4,9 @@ import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateWithGemini, getGeminiProviderStatus } from './geminiProvider.js'
+import { generateReplicateAdvisoryImage, generateReplicateCopy, getReplicateStatus } from './replicateProvider.js'
+import { selectReference } from './referenceSelector.js'
+import { buildReferenceAdvisoryPrompt } from './visualPromptBuilder.js'
 import { clearRuntimeGeminiConfig, saveRuntimeGeminiConfig } from './secretStore.js'
 import {
   createAdminSession,
@@ -47,6 +50,9 @@ const ALLOWED_TYPES = new Set([
   'External Advisory',
   'Executive Advisory'
 ])
+
+const ALLOWED_SIMILARITY = new Set(['low', 'medium', 'high'])
+const ALLOWED_CONCEPTS = new Set(['balanced', 'illustration', 'infographic', 'scenario'])
 
 function writeJson(response, status, payload, headers = {}) {
   response.writeHead(status, {
@@ -99,6 +105,15 @@ function validateRequest(payload) {
   return { topic, audience, advisoryType }
 }
 
+function validateReferenceImageRequest(payload) {
+  const base = validateRequest(payload)
+  const similarity = ALLOWED_SIMILARITY.has(payload?.similarity) ? payload.similarity : 'medium'
+  const concept = ALLOWED_CONCEPTS.has(payload?.concept) ? payload.concept : 'balanced'
+  const referenceId = typeof payload?.referenceId === 'string' ? payload.referenceId : 'auto'
+  const seed = Number.isInteger(payload?.seed) ? payload.seed : undefined
+  return { ...base, similarity, concept, referenceId, seed }
+}
+
 function assertAdminMutation(request) {
   requireAdmin(request)
   if (request.headers['x-admin-request'] !== '1') {
@@ -109,11 +124,20 @@ function assertAdminMutation(request) {
 }
 
 function writeApiError(response, error, fallbackMessage = 'Request failed.') {
-  const message = error?.message || fallbackMessage
-  const configurationError = /credentials|GOOGLE_CLOUD_PROJECT|GEMINI_API_KEY|ADMIN_PASSWORD|encryption/i.test(message)
-  const clientError = /required|supported|characters|valid JSON|too large|valid Gemini API key|invalid admin request/i.test(message)
+  const rawMessage = error?.message || fallbackMessage
+  const configurationError = /credentials|GOOGLE_CLOUD_PROJECT|GEMINI_API_KEY|REPLICATE_API_TOKEN|ADMIN_PASSWORD|encryption|Replicate is not configured/i.test(rawMessage)
+  const clientError = /required|supported|characters|valid JSON|too large|valid Gemini API key|invalid admin request|reference image/i.test(rawMessage)
   const status = error?.statusCode || (clientError ? 400 : (configurationError ? 503 : 500))
-  console.error('[advisory-api]', message)
+
+  let message = rawMessage
+  if (/API_KEY_SERVICE_BLOCKED|PERMISSION_DENIED/i.test(rawMessage)) {
+    message = 'Gemini is configured but the API key does not have permission to use the Gemini API.'
+  }
+  if (/Unauthorized|authentication|Invalid token|401/i.test(rawMessage) && /replicate/i.test(rawMessage)) {
+    message = 'The Replicate API token is invalid or no longer authorised.'
+  }
+
+  console.error('[advisory-api]', rawMessage)
   writeJson(response, status, { error: message })
 }
 
@@ -125,6 +149,52 @@ async function handleGenerate(request, response) {
     writeJson(response, 200, result)
   } catch (error) {
     writeApiError(response, error, 'Unable to generate advisory content.')
+  }
+}
+
+async function handleGenerateReferenceImage(request, response) {
+  try {
+    const payload = await readJson(request)
+    const input = validateReferenceImageRequest(payload)
+    const reference = selectReference(input)
+    const advisory = await generateReplicateCopy(input)
+    const prompt = buildReferenceAdvisoryPrompt({
+      advisory,
+      reference,
+      similarity: input.similarity,
+      concept: input.concept
+    })
+    const imageUrl = await generateReplicateAdvisoryImage({
+      prompt,
+      referenceUrl: reference.url,
+      seed: input.seed
+    })
+    const replicate = getReplicateStatus()
+
+    writeJson(response, 200, {
+      advisory: {
+        ...advisory,
+        topic: input.topic,
+        audience: input.audience,
+        advisoryType: input.advisoryType
+      },
+      imageUrl,
+      reference: {
+        id: reference.id,
+        title: reference.title,
+        url: reference.url,
+        category: reference.category,
+        visualFamily: reference.visualFamily
+      },
+      provider: 'replicate',
+      textModel: replicate.textModel,
+      imageModel: replicate.imageModel,
+      similarity: input.similarity,
+      concept: input.concept,
+      generatedAt: new Date().toISOString()
+    })
+  } catch (error) {
+    writeApiError(response, error, 'Unable to generate reference-guided advisory image.')
   }
 }
 
@@ -144,9 +214,11 @@ async function handleAdminSettings(request, response) {
   try {
     requireAdmin(request)
     const provider = await getGeminiProviderStatus()
+    const replicate = getReplicateStatus()
     writeJson(response, 200, {
       authenticated: true,
       adminConfigured: isAdminConfigured(),
+      replicate,
       gemini: {
         configured: provider.configured,
         source: provider.source,
@@ -272,12 +344,17 @@ const server = http.createServer(async (request, response) => {
   if (request.method === 'GET' && url.pathname === '/api/health') {
     try {
       const provider = await getGeminiProviderStatus()
+      const replicate = getReplicateStatus()
       writeJson(response, 200, {
         ok: true,
         service: 'advisory-generator',
-        provider: provider.provider,
-        configured: provider.configured,
-        source: provider.source,
+        primaryProvider: replicate.configured ? 'replicate' : provider.provider,
+        replicate,
+        gemini: {
+          provider: provider.provider,
+          configured: provider.configured,
+          source: provider.source
+        },
         adminConfigured: isAdminConfigured()
       })
     } catch (error) {
@@ -317,6 +394,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'DELETE' && url.pathname === '/api/admin/settings/gemini') {
     await handleDeleteGeminiSettings(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/advisories/generate-reference-image') {
+    await handleGenerateReferenceImage(request, response)
     return
   }
 
