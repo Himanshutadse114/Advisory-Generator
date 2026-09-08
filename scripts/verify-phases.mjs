@@ -62,6 +62,7 @@ const imagePrompt = buildReferenceAdvisoryPrompt({
 })
 assert.ok(imagePrompt.includes(prepared.advisory.title), 'Visual prompt must include the new advisory title.')
 assert.ok(imagePrompt.includes(qrReference.title), 'Visual prompt must identify the approved reference direction.')
-assert.ok(imagePrompt.includes('do not reproduce the exact layout') || imagePrompt.includes('do not reproduce'), 'Prompt must explicitly request similarity rather than copying.')
+assert.ok(/do not copy/i.test(imagePrompt), 'Prompt must explicitly tell the model not to copy the reference.')
+assert.ok(/fresh composition/i.test(imagePrompt), 'Prompt must require a fresh composition in the same design family.')
 
 console.log('All phase and reference-guided AI logic checks passed.')
