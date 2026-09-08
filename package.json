@@ -7,6 +7,7 @@
     "dev": "vite",
     "api": "node server/index.js",
     "build": "vite build",
+    "start": "node server/index.js",
     "verify:logic": "node scripts/verify-phases.mjs",
     "verify:admin": "node scripts/verify-admin-security.mjs",
     "verify": "npm run verify:logic && npm run verify:admin && npm run build",
