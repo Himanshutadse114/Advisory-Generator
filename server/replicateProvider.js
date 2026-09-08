@@ -1,7 +1,7 @@
 import { buildAdvisoryPrompt } from './advisoryPrompt.js'
 
 const DEFAULT_TEXT_MODEL = process.env.REPLICATE_TEXT_MODEL || 'meta/meta-llama-3-8b-instruct'
-const DEFAULT_IMAGE_MODEL = process.env.REPLICATE_IMAGE_MODEL || 'openai/gpt-image-1.5'
+const DEFAULT_IMAGE_MODEL = process.env.REPLICATE_IMAGE_MODEL || 'openai/gpt-image-2'
 const API_ROOT = 'https://api.replicate.com/v1'
 const POLL_INTERVAL_MS = 1200
 const MAX_WAIT_MS = 150000
@@ -131,33 +131,49 @@ export async function generateReplicateAdvisoryImage({ prompt, referenceUrl, ref
 
   if (urls.length === 0) throw new Error('A valid advisory reference image is required.')
 
-  const isGptImage = DEFAULT_IMAGE_MODEL === 'openai/gpt-image-1.5'
+  const isGptImage2 = DEFAULT_IMAGE_MODEL === 'openai/gpt-image-2'
+  const isGptImage15 = DEFAULT_IMAGE_MODEL === 'openai/gpt-image-1.5'
   const variationPrompt = Number.isInteger(seed)
     ? `${prompt}\n\nCreate a visually different concept variation. Variation token: ${seed}.`
     : prompt
 
-  const input = isGptImage
-    ? {
-        prompt: variationPrompt,
-        quality: 'high',
-        background: 'opaque',
-        moderation: 'auto',
-        aspect_ratio: '2:3',
-        input_images: urls,
-        input_fidelity: 'high',
-        output_format: 'png',
-        number_of_images: 1,
-        output_compression: 100
-      }
-    : {
-        prompt: variationPrompt,
-        input_image: urls[0],
-        aspect_ratio: 'match_input_image',
-        output_format: 'png',
-        safety_tolerance: 2,
-        prompt_upsampling: false,
-        ...(Number.isInteger(seed) ? { seed } : {})
-      }
+  let input
+  if (isGptImage2) {
+    input = {
+      prompt: variationPrompt,
+      quality: 'high',
+      background: 'opaque',
+      moderation: 'auto',
+      aspect_ratio: '2:3',
+      input_images: urls,
+      output_format: 'png',
+      number_of_images: 1,
+      output_compression: 100
+    }
+  } else if (isGptImage15) {
+    input = {
+      prompt: variationPrompt,
+      quality: 'high',
+      background: 'opaque',
+      moderation: 'auto',
+      aspect_ratio: '2:3',
+      input_images: urls,
+      input_fidelity: 'high',
+      output_format: 'png',
+      number_of_images: 1,
+      output_compression: 100
+    }
+  } else {
+    input = {
+      prompt: variationPrompt,
+      input_image: urls[0],
+      aspect_ratio: 'match_input_image',
+      output_format: 'png',
+      safety_tolerance: 2,
+      prompt_upsampling: false,
+      ...(Number.isInteger(seed) ? { seed } : {})
+    }
+  }
 
   const output = await runPrediction(DEFAULT_IMAGE_MODEL, input)
   const first = Array.isArray(output) ? output[0] : output
