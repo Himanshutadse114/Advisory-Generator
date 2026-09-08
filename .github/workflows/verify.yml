@@ -27,6 +27,8 @@ jobs:
           node --check server/replicateProvider.js
           node --check server/referenceSelector.js
           node --check server/visualPromptBuilder.js
+          node --check server/layoutBlueprint.js
+          node --check server/hybridArtworkPrompt.js
           node --check server/advisoryPrompt.js
           node --check server/secretStore.js
           node --check server/adminAuth.js
