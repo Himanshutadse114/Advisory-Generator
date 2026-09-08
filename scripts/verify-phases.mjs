@@ -7,6 +7,8 @@ import { BRAND_PROFILES, getBrandProfile } from '../src/data/brands.js'
 import { createEditorState, updateLayerState } from '../src/lib/editorState.js'
 import { evaluateAdvisory } from '../src/lib/qualityChecker.js'
 import { ADVISORY_RESPONSE_SCHEMA } from '../server/advisoryPrompt.js'
+import { selectReference } from '../server/referenceSelector.js'
+import { buildReferenceAdvisoryPrompt } from '../server/visualPromptBuilder.js'
 
 assert.equal(advisoryReferences.length, 25, 'Reference library should contain every approved advisory image.')
 for (const reference of advisoryReferences) {
@@ -47,4 +49,19 @@ assert.equal(ADVISORY_RESPONSE_SCHEMA.properties.sectionOnePoints.maxItems, 4)
 assert.equal(ADVISORY_RESPONSE_SCHEMA.properties.sectionTwoPoints.minItems, 4)
 assert.equal(ADVISORY_RESPONSE_SCHEMA.properties.sectionTwoPoints.maxItems, 4)
 
-console.log('All phase logic checks passed.')
+const qrReference = selectReference({ topic: 'QR Code Phishing', referenceId: 'auto' })
+assert.equal(qrReference.category, 'Phishing & Messaging', 'QR phishing should use the phishing reference family.')
+const manualReference = selectReference({ topic: 'Anything', referenceId: advisoryReferences[0].id })
+assert.equal(manualReference.id, advisoryReferences[0].id, 'Manual reference selection must override auto ranking.')
+
+const imagePrompt = buildReferenceAdvisoryPrompt({
+  advisory: prepared.advisory,
+  reference: qrReference,
+  similarity: 'medium',
+  concept: 'scenario'
+})
+assert.ok(imagePrompt.includes(prepared.advisory.title), 'Visual prompt must include the new advisory title.')
+assert.ok(imagePrompt.includes(qrReference.title), 'Visual prompt must identify the approved reference direction.')
+assert.ok(imagePrompt.includes('do not reproduce the exact layout') || imagePrompt.includes('do not reproduce'), 'Prompt must explicitly request similarity rather than copying.')
+
+console.log('All phase and reference-guided AI logic checks passed.')
