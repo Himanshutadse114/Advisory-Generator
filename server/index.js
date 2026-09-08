@@ -1,4 +1,8 @@
 import http from 'node:http'
+import { createReadStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { generateWithGemini, getGeminiProviderStatus } from './geminiProvider.js'
 import { clearRuntimeGeminiConfig, saveRuntimeGeminiConfig } from './secretStore.js'
 import {
@@ -11,8 +15,24 @@ import {
   requireAdmin
 } from './adminAuth.js'
 
-const PORT = Number(process.env.ADVISORY_API_PORT || 8787)
+const PORT = Number(process.env.PORT || process.env.ADVISORY_API_PORT || 8787)
 const MAX_BODY_BYTES = 64 * 1024
+const DIST_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist')
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2'
+}
 
 const ALLOWED_AUDIENCES = new Set([
   'All Employees',
@@ -191,6 +211,61 @@ async function handleDeleteGeminiSettings(request, response) {
   }
 }
 
+async function streamFile(request, response, filePath) {
+  const info = await stat(filePath)
+  if (!info.isFile()) return false
+
+  const extension = path.extname(filePath).toLowerCase()
+  const cacheControl = filePath.includes(`${path.sep}assets${path.sep}`)
+    ? 'public, max-age=31536000, immutable'
+    : 'no-cache'
+
+  response.writeHead(200, {
+    'Content-Type': MIME_TYPES[extension] || 'application/octet-stream',
+    'Content-Length': info.size,
+    'Cache-Control': cacheControl,
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'same-origin'
+  })
+
+  if (request.method === 'HEAD') {
+    response.end()
+    return true
+  }
+
+  createReadStream(filePath).pipe(response)
+  return true
+}
+
+async function serveFrontend(request, response, url) {
+  if (!['GET', 'HEAD'].includes(request.method)) return false
+
+  let pathname
+  try {
+    pathname = decodeURIComponent(url.pathname)
+  } catch {
+    return false
+  }
+
+  const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '')
+  const requestedPath = path.resolve(DIST_DIR, relativePath)
+  const insideDist = requestedPath === DIST_DIR || requestedPath.startsWith(`${DIST_DIR}${path.sep}`)
+
+  if (!insideDist) return false
+
+  try {
+    if (await streamFile(request, response, requestedPath)) return true
+  } catch {
+    // Fall through to the SPA entry point.
+  }
+
+  try {
+    return await streamFile(request, response, path.join(DIST_DIR, 'index.html'))
+  } catch {
+    return false
+  }
+}
+
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`)
 
@@ -199,7 +274,7 @@ const server = http.createServer(async (request, response) => {
       const provider = await getGeminiProviderStatus()
       writeJson(response, 200, {
         ok: true,
-        service: 'advisory-content-api',
+        service: 'advisory-generator',
         provider: provider.provider,
         configured: provider.configured,
         source: provider.source,
@@ -250,9 +325,16 @@ const server = http.createServer(async (request, response) => {
     return
   }
 
-  writeJson(response, 404, { error: 'Not found.' })
+  if (url.pathname.startsWith('/api/')) {
+    writeJson(response, 404, { error: 'Not found.' })
+    return
+  }
+
+  if (await serveFrontend(request, response, url)) return
+
+  writeJson(response, 404, { error: 'Frontend build is not available. Run npm run build first.' })
 })
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Advisory content API listening on http://0.0.0.0:${PORT}`)
+  console.log(`Advisory Generator listening on http://0.0.0.0:${PORT}`)
 })
