@@ -37,7 +37,7 @@ ROLE OF THE INPUT IMAGES
 - Study their professional layout language, warm corporate palette, use of whitespace, hierarchy, illustration treatment, section rhythm, icon treatment and balanced density.
 - ${SIMILARITY_GUIDANCE[similarity] || SIMILARITY_GUIDANCE.medium}
 - ${CONCEPT_GUIDANCE[concept] || CONCEPT_GUIDANCE.balanced}
-- Create a fresh composition for the new topic. Do not trace, duplicate or merely replace text in a reference.
+- Create a fresh composition for the new topic. Do not copy the reference, trace it, duplicate it or merely replace its text.
 - Do not reproduce an exact reference layout.
 - Do not drift into dark cyberpunk, neon-blue hacker art, generic AI poster styling, excessive glow, clutter or stock-photo aesthetics unless that treatment is genuinely present in the references.
 - The output must feel like another piece from the same professional advisory design series.
