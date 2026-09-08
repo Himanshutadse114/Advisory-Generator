@@ -4,9 +4,16 @@ import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateWithGemini, getGeminiProviderStatus } from './geminiProvider.js'
-import { generateReplicateAdvisoryImage, generateReplicateCopy, getReplicateStatus } from './replicateProvider.js'
-import { selectReference } from './referenceSelector.js'
+import {
+  generateReplicateAdvisoryImage,
+  generateReplicateCopy,
+  generateReplicateHybridArtwork,
+  generateReplicateLayoutBlueprint,
+  getReplicateStatus
+} from './replicateProvider.js'
+import { selectReference, selectReferences } from './referenceSelector.js'
 import { buildReferenceAdvisoryPrompt } from './visualPromptBuilder.js'
+import { buildHybridArtworkPrompt } from './hybridArtworkPrompt.js'
 import { clearRuntimeGeminiConfig, saveRuntimeGeminiConfig } from './secretStore.js'
 import {
   createAdminSession,
@@ -156,17 +163,19 @@ async function handleGenerateReferenceImage(request, response) {
   try {
     const payload = await readJson(request)
     const input = validateReferenceImageRequest(payload)
-    const reference = selectReference(input)
+    const references = selectReferences({ ...input, limit: 3 })
+    const reference = references[0] || selectReference(input)
     const advisory = await generateReplicateCopy(input)
     const prompt = buildReferenceAdvisoryPrompt({
       advisory,
       reference,
+      references,
       similarity: input.similarity,
       concept: input.concept
     })
     const imageUrl = await generateReplicateAdvisoryImage({
       prompt,
-      referenceUrl: reference.url,
+      referenceUrls: references.map(item => item.url),
       seed: input.seed
     })
     const replicate = getReplicateStatus()
@@ -195,6 +204,71 @@ async function handleGenerateReferenceImage(request, response) {
     })
   } catch (error) {
     writeApiError(response, error, 'Unable to generate reference-guided advisory image.')
+  }
+}
+
+async function handleGenerateHybrid(request, response) {
+  try {
+    const payload = await readJson(request)
+    const input = validateReferenceImageRequest(payload)
+    const references = selectReferences({ ...input, limit: 3 })
+    if (!references.length) throw new Error('No approved advisory reference image is available.')
+
+    const advisory = await generateReplicateCopy(input)
+    const blueprint = await generateReplicateLayoutBlueprint({
+      advisory,
+      references,
+      similarity: input.similarity,
+      concept: input.concept
+    })
+    const artworkPrompt = buildHybridArtworkPrompt({
+      advisory,
+      blueprint,
+      references,
+      similarity: input.similarity,
+      concept: input.concept
+    })
+    const artworkUrl = await generateReplicateHybridArtwork({
+      prompt: artworkPrompt,
+      referenceUrls: references.map(item => item.url),
+      seed: input.seed
+    })
+    const replicate = getReplicateStatus()
+
+    writeJson(response, 200, {
+      project: {
+        version: 1,
+        mode: 'hybrid-editable',
+        topic: input.topic,
+        audience: input.audience,
+        advisoryType: input.advisoryType,
+        advisory,
+        blueprint,
+        artworkUrl,
+        brand: {
+          name: 'Innvikta',
+          logoText: 'INNVIKTA',
+          footerText: 'Stay aware. Stay secure.'
+        },
+        references: references.map(item => ({
+          id: item.id,
+          title: item.title,
+          url: item.url,
+          category: item.category,
+          visualFamily: item.visualFamily
+        })),
+        generation: {
+          provider: 'replicate',
+          textModel: replicate.textModel,
+          imageModel: replicate.imageModel,
+          similarity: input.similarity,
+          concept: input.concept,
+          generatedAt: new Date().toISOString()
+        }
+      }
+    })
+  } catch (error) {
+    writeApiError(response, error, 'Unable to generate hybrid editable advisory.')
   }
 }
 
@@ -348,6 +422,7 @@ const server = http.createServer(async (request, response) => {
       writeJson(response, 200, {
         ok: true,
         service: 'advisory-generator',
+        primaryMode: 'hybrid-editable',
         primaryProvider: replicate.configured ? 'replicate' : provider.provider,
         replicate,
         gemini: {
@@ -394,6 +469,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'DELETE' && url.pathname === '/api/admin/settings/gemini') {
     await handleDeleteGeminiSettings(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/advisories/generate-hybrid') {
+    await handleGenerateHybrid(request, response)
     return
   }
 
