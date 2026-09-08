@@ -54,7 +54,7 @@ export default function AiApp({ onOpenClassic }) {
 
   const generate = async ({ newConcept = false } = {}) => {
     if (!topic.trim() || state.status === 'loading') return
-    setState({ status: 'loading', message: 'Writing the advisory and generating a fresh reference-guided design…' })
+    setState({ status: 'loading', message: 'Writing concise advisory copy and generating a fresh reference-guided design with readable text…' })
     try {
       const payload = await generateReferenceAdvisoryImage({
         topic: topic.trim(),
@@ -98,7 +98,7 @@ export default function AiApp({ onOpenClassic }) {
 
           {panel === 'create' && (
             <section className="panel-content">
-              <div className="panel-heading"><span className="eyebrow">AI ADVISORY</span><h1>Create from your reference style</h1><p>Replicate writes the content, selects an approved reference and generates a completely new advisory image in a similar professional design language.</p></div>
+              <div className="panel-heading"><span className="eyebrow">AI ADVISORY</span><h1>Create from your reference style</h1><p>Replicate writes concise content, selects an approved reference and generates a completely new advisory image in a similar professional design language.</p></div>
 
               <label className="field"><span>Advisory topic</span><input value={topic} onChange={event => setTopic(event.target.value)} placeholder="e.g. QR Code Phishing" /></label>
               <label className="field"><span>Audience</span><select value={audience} onChange={event => setAudience(event.target.value)}>{AUDIENCES.map(item => <option key={item}>{item}</option>)}</select></label>
@@ -113,11 +113,11 @@ export default function AiApp({ onOpenClassic }) {
                   <label className="field"><span>Creative direction</span><select value={concept} onChange={event => setConcept(event.target.value)}>{CONCEPTS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
                 </div>
 
-                <button className="ai-generate-button" type="button" onClick={() => generate()} disabled={!topic.trim() || state.status === 'loading'}><span>{state.status === 'loading' ? 'Generating complete advisory…' : 'Generate AI advisory'}</span><small>Replicate copy + approved reference + FLUX Kontext Pro</small></button>
-                <button className="classic-generate-link" type="button" onClick={onOpenClassic}>Need precise editable text? Open the structured SVG editor instead.</button>
+                <button className="ai-generate-button" type="button" onClick={() => generate()} disabled={!topic.trim() || state.status === 'loading'}><span>{state.status === 'loading' ? 'Generating complete advisory…' : 'Generate AI advisory'}</span><small>Replicate copy + approved reference + GPT Image 1.5</small></button>
+                <button className="classic-generate-link" type="button" onClick={onOpenClassic}>Need fully editable vector text? Open the structured SVG editor instead.</button>
               </div>
 
-              <div className={`system-note generation-note ${state.status}`}><strong>Replicate generation</strong><p>{state.status === 'idle' ? 'Add REPLICATE_API_TOKEN in Render Environment Variables. One generation uses a text model plus one reference-guided image generation.' : state.message}</p></div>
+              <div className={`system-note generation-note ${state.status}`}><strong>Replicate generation</strong><p>{state.status === 'idle' ? 'Add REPLICATE_API_TOKEN in Render Environment Variables. The image model receives the approved reference and an exact text manifest for the new advisory.' : state.message}</p></div>
             </section>
           )}
 
@@ -148,7 +148,7 @@ export default function AiApp({ onOpenClassic }) {
             />
           </div>
 
-          <div className="statusbar"><span>Replicate</span><span>{result?.textModel || 'meta/meta-llama-3-8b-instruct'}</span><span>{result?.imageModel || 'black-forest-labs/flux-kontext-pro'}</span><span>{result ? result.reference?.title : 'Awaiting generation'}</span></div>
+          <div className="statusbar"><span>Replicate</span><span>{result?.textModel || 'meta/meta-llama-3-8b-instruct'}</span><span>{result?.imageModel || 'openai/gpt-image-1.5'}</span><span>{result ? result.reference?.title : 'Awaiting generation'}</span></div>
         </section>
       </main>
     </div>
