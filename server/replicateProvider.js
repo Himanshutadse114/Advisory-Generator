@@ -1,4 +1,5 @@
 import { buildAdvisoryPrompt } from './advisoryPrompt.js'
+import { buildLayoutBlueprintPrompt, normaliseBlueprint } from './layoutBlueprint.js'
 
 const DEFAULT_TEXT_MODEL = process.env.REPLICATE_TEXT_MODEL || 'meta/meta-llama-3-8b-instruct'
 const DEFAULT_IMAGE_MODEL = process.env.REPLICATE_IMAGE_MODEL || 'openai/gpt-image-2'
@@ -84,8 +85,12 @@ function extractJson(text) {
   try {
     return JSON.parse(candidate.slice(start, end + 1))
   } catch {
-    throw new Error('Replicate text model returned invalid advisory JSON.')
+    throw new Error('Replicate text model returned invalid JSON.')
   }
+}
+
+function outputText(output) {
+  return Array.isArray(output) ? output.join('') : String(output || '')
 }
 
 function validateAdvisory(advisory) {
@@ -102,7 +107,7 @@ function validateAdvisory(advisory) {
 }
 
 export async function generateReplicateCopy(request) {
-  const prompt = `${buildAdvisoryPrompt(request)}\n\nIMAGE-POSTER COPY LIMITS:\n- Introduction: maximum 170 characters.\n- Each bullet: 45 to 78 characters where possible.\n- Section headings: maximum 28 characters.\n- Keep wording simple, concrete and easy to typeset.\n\nReturn ONLY valid JSON using exactly this shape:\n{\n  "title": "...",\n  "intro": "...",\n  "category": "...",\n  "sectionOneTitle": "...",\n  "sectionOnePoints": ["...", "...", "...", "..."],\n  "sectionTwoTitle": "...",\n  "sectionTwoPoints": ["...", "...", "...", "..."]\n}`
+  const prompt = `${buildAdvisoryPrompt(request)}\n\nEDITABLE ADVISORY COPY LIMITS:\n- Introduction: maximum 190 characters.\n- Each bullet: 50 to 92 characters where possible.\n- Section headings: maximum 28 characters.\n- Keep wording simple, concrete and easy to scan.\n\nReturn ONLY valid JSON using exactly this shape:\n{\n  "title": "...",\n  "intro": "...",\n  "category": "...",\n  "sectionOneTitle": "...",\n  "sectionOnePoints": ["...", "...", "...", "..."],\n  "sectionTwoTitle": "...",\n  "sectionTwoPoints": ["...", "...", "...", "..."]\n}`
 
   const output = await runPrediction(DEFAULT_TEXT_MODEL, {
     prompt,
@@ -113,8 +118,25 @@ export async function generateReplicateCopy(request) {
     top_p: 0.9
   })
 
-  const text = Array.isArray(output) ? output.join('') : String(output || '')
-  return validateAdvisory(extractJson(text))
+  return validateAdvisory(extractJson(outputText(output)))
+}
+
+export async function generateReplicateLayoutBlueprint({ advisory, references, similarity, concept }) {
+  const prompt = buildLayoutBlueprintPrompt({ advisory, references, similarity, concept })
+  try {
+    const output = await runPrediction(DEFAULT_TEXT_MODEL, {
+      prompt,
+      system_prompt: 'You are an editorial layout planner. Return only valid JSON. Never add markdown or commentary.',
+      max_new_tokens: 1100,
+      max_tokens: 1100,
+      temperature: 0.35,
+      top_p: 0.9
+    })
+    return normaliseBlueprint(extractJson(outputText(output)), references[0])
+  } catch (error) {
+    console.warn('[hybrid-layout] using safe fallback:', error.message)
+    return normaliseBlueprint({}, references[0])
+  }
 }
 
 function asImageUrl(value) {
@@ -124,12 +146,10 @@ function asImageUrl(value) {
   return null
 }
 
-export async function generateReplicateAdvisoryImage({ prompt, referenceUrl, referenceUrls, seed }) {
-  const urls = (Array.isArray(referenceUrls) ? referenceUrls : [referenceUrl])
+async function generateImage({ prompt, referenceUrls, seed, aspectRatio = '2:3', quality = 'high' }) {
+  const urls = (Array.isArray(referenceUrls) ? referenceUrls : [])
     .filter(url => typeof url === 'string' && /^https:\/\//i.test(url))
     .slice(0, 4)
-
-  if (urls.length === 0) throw new Error('A valid advisory reference image is required.')
 
   const isGptImage2 = DEFAULT_IMAGE_MODEL === 'openai/gpt-image-2'
   const isGptImage15 = DEFAULT_IMAGE_MODEL === 'openai/gpt-image-1.5'
@@ -141,10 +161,10 @@ export async function generateReplicateAdvisoryImage({ prompt, referenceUrl, ref
   if (isGptImage2) {
     input = {
       prompt: variationPrompt,
-      quality: 'high',
+      quality,
       background: 'opaque',
       moderation: 'auto',
-      aspect_ratio: '2:3',
+      aspect_ratio: aspectRatio,
       input_images: urls,
       output_format: 'png',
       number_of_images: 1,
@@ -153,10 +173,10 @@ export async function generateReplicateAdvisoryImage({ prompt, referenceUrl, ref
   } else if (isGptImage15) {
     input = {
       prompt: variationPrompt,
-      quality: 'high',
+      quality,
       background: 'opaque',
       moderation: 'auto',
-      aspect_ratio: '2:3',
+      aspect_ratio: aspectRatio,
       input_images: urls,
       input_fidelity: 'high',
       output_format: 'png',
@@ -164,6 +184,7 @@ export async function generateReplicateAdvisoryImage({ prompt, referenceUrl, ref
       output_compression: 100
     }
   } else {
+    if (urls.length === 0) throw new Error('A valid advisory reference image is required.')
     input = {
       prompt: variationPrompt,
       input_image: urls[0],
@@ -178,9 +199,19 @@ export async function generateReplicateAdvisoryImage({ prompt, referenceUrl, ref
   const output = await runPrediction(DEFAULT_IMAGE_MODEL, input)
   const first = Array.isArray(output) ? output[0] : output
   const imageUrl = asImageUrl(first)
-
   if (!imageUrl) throw new Error('Replicate image model returned no image URL.')
   return String(imageUrl)
+}
+
+export async function generateReplicateAdvisoryImage({ prompt, referenceUrl, referenceUrls, seed }) {
+  const urls = (Array.isArray(referenceUrls) ? referenceUrls : [referenceUrl]).filter(Boolean)
+  if (urls.length === 0) throw new Error('A valid advisory reference image is required.')
+  return generateImage({ prompt, referenceUrls: urls, seed, aspectRatio: '2:3', quality: 'high' })
+}
+
+export async function generateReplicateHybridArtwork({ prompt, referenceUrls, seed }) {
+  if (!Array.isArray(referenceUrls) || referenceUrls.length === 0) throw new Error('At least one approved reference image is required.')
+  return generateImage({ prompt, referenceUrls, seed, aspectRatio: '2:3', quality: 'high' })
 }
 
 export function getReplicateStatus() {
