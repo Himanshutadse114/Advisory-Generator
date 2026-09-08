@@ -5,7 +5,7 @@ import { advisoryReferences } from './data/references'
 import { ADVISORY_TYPES, AUDIENCES, generateAdvisory } from './lib/advisoryEngine'
 import { getReferenceDirection } from './lib/referenceIntelligence'
 import { generateHybridAdvisory, imageUrlToDataUrl } from './lib/hybridService'
-import { exportPng, exportProjectJson, exportSvg, importProjectJson } from './lib/hybridProject'
+import { exportPdf, exportPng, exportProjectJson, exportSvg, importProjectJson } from './lib/hybridProject'
 import './admin.css'
 import './hybrid.css'
 
@@ -42,10 +42,7 @@ export default function HybridApp({ onOpenFullPoster, onOpenClassic }) {
     if (!topic.trim() || state.status === 'loading') return
     setState({ status: 'loading', message: 'Writing content, planning an editable layout and generating the artwork layer…' })
     try {
-      const generated = await generateHybridAdvisory({
-        topic: topic.trim(), audience, advisoryType, referenceId, similarity, concept,
-        ...(variation ? { seed: Math.floor(Math.random() * 2147483646) + 1 } : {})
-      })
+      const generated = await generateHybridAdvisory({ topic: topic.trim(), audience, advisoryType, referenceId, similarity, concept, ...(variation ? { seed: Math.floor(Math.random() * 2147483646) + 1 } : {}) })
       const artworkDataUrl = await imageUrlToDataUrl(generated.artworkUrl)
       setProject({ ...generated, artworkDataUrl })
       setSelectedLayer('title')
@@ -56,11 +53,7 @@ export default function HybridApp({ onOpenFullPoster, onOpenClassic }) {
   }
 
   const updateAdvisory = (key, value) => setProject(current => ({ ...current, advisory: { ...current.advisory, [key]: value } }))
-  const updatePoint = (key, index, value) => setProject(current => {
-    const points = [...current.advisory[key]]
-    points[index] = value
-    return { ...current, advisory: { ...current.advisory, [key]: points } }
-  })
+  const updatePoint = (key, index, value) => setProject(current => { const points = [...current.advisory[key]]; points[index] = value; return { ...current, advisory: { ...current.advisory, [key]: points } } })
   const updatePalette = (key, value) => setProject(current => ({ ...current, blueprint: { ...current.blueprint, palette: { ...current.blueprint.palette, [key]: value } } }))
   const updateBrand = (key, value) => setProject(current => ({ ...current, brand: { ...current.brand, [key]: value } }))
   const updateLayer = (id, patch) => setProject(current => {
@@ -83,24 +76,19 @@ export default function HybridApp({ onOpenFullPoster, onOpenClassic }) {
     } finally { event.target.value = '' }
   }
 
+  const exportError = error => setState({ status: 'error', message: error.message })
   const currentBox = project?.blueprint?.layers?.[selectedLayer]
 
   return (
     <div className="hybrid-shell">
       <header className="hybrid-topbar">
         <div className="brand-lockup"><div className="brand-mark">I</div><div><strong>Advisory Generator</strong><span>Hybrid Editable AI Studio</span></div></div>
-        <div className="hybrid-top-actions">
-          <span className="hybrid-mode-pill">AI design + editable layers</span>
-          <button className="ghost-button" type="button" onClick={onOpenFullPoster}>Full AI Poster</button>
-          <button className="ghost-button" type="button" onClick={onOpenClassic}>Classic Editor</button>
-        </div>
+        <div className="hybrid-top-actions"><span className="hybrid-mode-pill">AI design + editable layers</span><button className="ghost-button" type="button" onClick={onOpenFullPoster}>Full AI Poster</button><button className="ghost-button" type="button" onClick={onOpenClassic}>Classic Editor</button></div>
       </header>
 
       <main className="hybrid-workspace">
         <aside className="hybrid-sidebar">
-          <nav className="hybrid-tabs">
-            {[['create', 'Create'], ['content', 'Content'], ['layers', 'Layers'], ['brand', 'Brand'], ['refs', 'Refs'], ['admin', 'Admin']].map(([id, label]) => <button key={id} className={panel === id ? 'active' : ''} onClick={() => setPanel(id)}>{label}</button>)}
-          </nav>
+          <nav className="hybrid-tabs">{[['create', 'Create'], ['content', 'Content'], ['layers', 'Layers'], ['brand', 'Brand'], ['refs', 'Refs'], ['admin', 'Admin']].map(([id, label]) => <button key={id} className={panel === id ? 'active' : ''} onClick={() => setPanel(id)}>{label}</button>)}</nav>
 
           {panel === 'create' && <section className="hybrid-panel">
             <div className="panel-heading"><span className="eyebrow">HYBRID AI</span><h1>AI-designed. Fully editable.</h1><p>AI studies your approved references, plans a fresh composition and generates only the visual artwork. All advisory text stays editable.</p></div>
@@ -137,32 +125,15 @@ export default function HybridApp({ onOpenFullPoster, onOpenClassic }) {
             </>}
           </section>}
 
-          {panel === 'brand' && <section className="hybrid-panel">
-            <div className="panel-heading compact"><span className="eyebrow">BRAND & COLOUR</span><h2>Finish the advisory</h2></div>
-            {!project ? <div className="hybrid-empty-side">Generate or open a project first.</div> : <>
-              <label className="field"><span>Logo text</span><input value={project.brand?.logoText || ''} onChange={e => updateBrand('logoText', e.target.value)} /></label>
-              <label className="field"><span>Footer message</span><input value={project.brand?.footerText || ''} onChange={e => updateBrand('footerText', e.target.value)} /></label>
-              <div className="hybrid-colours">{[['paper', 'Background'], ['ink', 'Text'], ['accent', 'Accent'], ['soft', 'Panel'], ['line', 'Lines']].map(([key, label]) => <label key={key}><span>{label}</span><input type="color" value={project.blueprint.palette[key]} onChange={e => updatePalette(key, e.target.value)} /></label>)}</div>
-            </>}
-          </section>}
-
+          {panel === 'brand' && <section className="hybrid-panel"><div className="panel-heading compact"><span className="eyebrow">BRAND & COLOUR</span><h2>Finish the advisory</h2></div>{!project ? <div className="hybrid-empty-side">Generate or open a project first.</div> : <><label className="field"><span>Logo text</span><input value={project.brand?.logoText || ''} onChange={e => updateBrand('logoText', e.target.value)} /></label><label className="field"><span>Footer message</span><input value={project.brand?.footerText || ''} onChange={e => updateBrand('footerText', e.target.value)} /></label><div className="hybrid-colours">{[['paper', 'Background'], ['ink', 'Text'], ['accent', 'Accent'], ['soft', 'Panel'], ['line', 'Lines']].map(([key, label]) => <label key={key}><span>{label}</span><input type="color" value={project.blueprint.palette[key]} onChange={e => updatePalette(key, e.target.value)} /></label>)}</div></>}</section>}
           {panel === 'refs' && <section className="hybrid-panel reference-panel"><div className="panel-heading compact"><span className="eyebrow">REFERENCES</span><h2>Approved design library</h2><p>Choose one reference or leave Auto enabled to let the system rank the closest visual family.</p></div><div className="reference-grid enriched">{advisoryReferences.map(reference => <button type="button" key={reference.id} className={`reference-card ai-reference-card ${referenceId === reference.id ? 'active' : ''}`} onClick={() => { setReferenceId(reference.id); setPanel('create') }}><img src={reference.url} alt={reference.title} loading="lazy" /><span>{reference.title}</span><small>{reference.category}</small></button>)}</div></section>}
           {panel === 'admin' && <AdminPanel />}
         </aside>
 
         <section className="hybrid-studio">
-          <div className="hybrid-toolbar">
-            <div><span>Editable design master</span><strong>{project?.advisory?.title || 'Generate an advisory to begin'}</strong></div>
-            <div className="hybrid-export-actions">
-              <button disabled={!project} onClick={() => exportProjectJson(project)}>Project JSON</button>
-              <button disabled={!project} onClick={() => exportSvg(svgRef.current, project)}>SVG</button>
-              <button disabled={!project} onClick={() => exportPng(svgRef.current, project).catch(error => setState({ status: 'error', message: error.message }))}>PNG</button>
-            </div>
-          </div>
-          <div className="hybrid-stage">
-            {project ? <div className="hybrid-canvas-wrap"><HybridCanvas ref={svgRef} project={project} selectedLayer={selectedLayer} onSelectLayer={setSelectedLayer} onMoveLayer={updateLayer} /></div> : <div className="hybrid-placeholder"><div>AI + EDITABLE</div><strong>Generate your first editable advisory</strong><p>The AI will create the visual design layer while all typography stays live and editable.</p></div>}
-          </div>
-          <div className="hybrid-statusbar"><span>Hybrid editable</span><span>{project?.blueprint?.composition || 'AI layout blueprint'}</span><span>{project?.generation?.imageModel || 'openai/gpt-image-2'}</span><span>1080 × 1620</span><span>SVG / PNG / JSON</span></div>
+          <div className="hybrid-toolbar"><div><span>Editable design master</span><strong>{project?.advisory?.title || 'Generate an advisory to begin'}</strong></div><div className="hybrid-export-actions"><button disabled={!project} onClick={() => exportProjectJson(project)}>Project JSON</button><button disabled={!project} onClick={() => exportSvg(svgRef.current, project)}>SVG</button><button disabled={!project} onClick={() => exportPng(svgRef.current, project).catch(exportError)}>PNG</button><button disabled={!project} onClick={() => exportPdf(svgRef.current, project).catch(exportError)}>PDF</button></div></div>
+          <div className="hybrid-stage">{project ? <div className="hybrid-canvas-wrap"><HybridCanvas ref={svgRef} project={project} selectedLayer={selectedLayer} onSelectLayer={setSelectedLayer} onMoveLayer={updateLayer} /></div> : <div className="hybrid-placeholder"><div>AI + EDITABLE</div><strong>Generate your first editable advisory</strong><p>The AI will create the visual design layer while all typography stays live and editable.</p></div>}</div>
+          <div className="hybrid-statusbar"><span>Hybrid editable</span><span>{project?.blueprint?.composition || 'AI layout blueprint'}</span><span>{project?.generation?.imageModel || 'openai/gpt-image-2'}</span><span>1080 × 1620</span><span>SVG / PNG / PDF / JSON</span></div>
         </section>
       </main>
     </div>
