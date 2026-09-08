@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: innvikta-advisory-generator
+    runtime: node
+    plan: 0.5c-512mb
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      - key: ADMIN_ENCRYPTION_SECRET
+        generateValue: true
+
+      - key: ADVISORY_DATA_DIR
+        value: /var/data/advisory-generator
+
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+
+      - key: GEMINI_IMAGE_MODEL
+        value: gemini-3.1-flash-image
+
+    disk:
+      name: advisory-data
+      mountPath: /var/data
+      sizeGB: 1
