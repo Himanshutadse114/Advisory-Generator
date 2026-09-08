@@ -67,10 +67,7 @@ export default function AdminPanel() {
     if (!password) return
     setState({ status: 'loading', message: 'Signing in…' })
     try {
-      await api('/api/admin/login', {
-        method: 'POST',
-        body: JSON.stringify({ password })
-      })
+      await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password }) })
       setPassword('')
       setSession(current => ({ ...current, authenticated: true }))
       await loadSettings()
@@ -105,10 +102,7 @@ export default function AdminPanel() {
   const handleRemove = async () => {
     setState({ status: 'loading', message: 'Removing stored Gemini key…' })
     try {
-      const payload = await api('/api/admin/settings/gemini', {
-        method: 'DELETE',
-        headers: { 'X-Admin-Request': '1' }
-      })
+      const payload = await api('/api/admin/settings/gemini', { method: 'DELETE', headers: { 'X-Admin-Request': '1' } })
       setSettings(current => ({ ...(current || {}), authenticated: true, gemini: payload.gemini }))
       setState({ status: 'success', message: payload.gemini?.configured ? 'Stored key removed. Environment credentials are still active.' : 'Stored Gemini key removed.' })
     } catch (error) {
@@ -131,8 +125,8 @@ export default function AdminPanel() {
   if (!session.adminConfigured) {
     return (
       <section className="panel-content admin-panel">
-        <div className="panel-heading compact"><span className="eyebrow">ADMIN</span><h2>Admin setup required</h2><p>Set <code>ADMIN_PASSWORD</code> on the server first. It must be at least 12 characters. The password is never stored in the browser.</p></div>
-        <div className="admin-security-note"><strong>Why this is required</strong><p>The Gemini API key must only be writable by an authenticated administrator. Once the admin password is configured, this panel can securely store the key without committing it to GitHub.</p></div>
+        <div className="panel-heading compact"><span className="eyebrow">ADMIN</span><h2>Admin setup required</h2><p>Set <code>ADMIN_PASSWORD</code> on the server first. It must be at least 12 characters.</p></div>
+        <div className="admin-security-note"><strong>Primary AI provider</strong><p>For the reference-guided generator add <code>REPLICATE_API_TOKEN</code> directly in Render Environment Variables. This panel keeps the older Gemini configuration available as an optional fallback.</p></div>
       </section>
     )
   }
@@ -140,7 +134,7 @@ export default function AdminPanel() {
   if (!session.authenticated) {
     return (
       <section className="panel-content admin-panel">
-        <div className="panel-heading compact"><span className="eyebrow">ADMIN</span><h2>Admin sign in</h2><p>Sign in to manage AI credentials. Sessions expire automatically.</p></div>
+        <div className="panel-heading compact"><span className="eyebrow">ADMIN</span><h2>Admin sign in</h2><p>Sign in to view provider status and manage optional Gemini credentials.</p></div>
         <form className="admin-form" onSubmit={handleLogin}>
           <label className="field"><span>Admin password</span><input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} /></label>
           <button className="generate-button" type="submit" disabled={!password || state.status === 'loading'}><span>{state.status === 'loading' ? 'Signing in…' : 'Sign in'}</span><small>Protected server-side session</small></button>
@@ -151,36 +145,41 @@ export default function AdminPanel() {
   }
 
   const gemini = settings?.gemini || {}
+  const replicate = settings?.replicate || {}
 
   return (
     <section className="panel-content admin-panel">
-      <div className="panel-heading compact"><span className="eyebrow">ADMIN SETTINGS</span><h2>Gemini configuration</h2><p>Add or replace the Gemini API key used by the advisory generator. The saved key is encrypted at rest and never displayed again.</p></div>
+      <div className="panel-heading compact"><span className="eyebrow">AI PROVIDERS</span><h2>Provider status</h2><p>Replicate is the primary provider for complete reference-guided advisory generation. Gemini remains available for the classic structured editor.</p></div>
 
       <div className="admin-provider-card">
-        <div>
-          <span>Gemini provider</span>
-          <strong>{gemini.provider || 'google-gemini'}</strong>
-        </div>
+        <div><span>Primary provider</span><strong>Replicate</strong></div>
+        <StatusPill configured={Boolean(replicate.configured)} source="Render environment" />
+        <small>Text: {replicate.textModel || 'meta/meta-llama-3-8b-instruct'}</small>
+        <small>Image: {replicate.imageModel || 'black-forest-labs/flux-kontext-pro'}</small>
+        {!replicate.configured && <small>Add REPLICATE_API_TOKEN in Render → Environment, then redeploy.</small>}
+      </div>
+
+      <div className="admin-provider-card">
+        <div><span>Optional fallback</span><strong>{gemini.provider || 'Google Gemini'}</strong></div>
         <StatusPill configured={Boolean(gemini.configured)} source={gemini.source} />
         {gemini.maskedKey && <small>Saved key: {gemini.maskedKey}</small>}
         {gemini.updatedAt && <small>Updated: {new Date(gemini.updatedAt).toLocaleString()}</small>}
       </div>
 
       <form className="admin-form" onSubmit={handleSave}>
-        <label className="field"><span>Gemini API key</span><input type="password" autoComplete="new-password" value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder={gemini.maskedKey || 'Paste a new Gemini API key'} /></label>
-        <label className="field"><span>Text model</span><input value={model} onChange={event => setModel(event.target.value)} placeholder={DEFAULT_TEXT_MODEL} /></label>
-        <label className="field"><span>Image model (ready for image-generation integration)</span><input value={imageModel} onChange={event => setImageModel(event.target.value)} placeholder={DEFAULT_IMAGE_MODEL} /></label>
-        <button className="generate-button" type="submit" disabled={!apiKey.trim() || state.status === 'loading'}><span>{state.status === 'loading' ? 'Saving…' : gemini.configured ? 'Replace API key' : 'Save API key'}</span><small>AES-256-GCM encrypted server storage</small></button>
+        <label className="field"><span>Optional Gemini API key</span><input type="password" autoComplete="new-password" value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder={gemini.maskedKey || 'Paste Gemini key only if needed'} /></label>
+        <label className="field"><span>Gemini text model</span><input value={model} onChange={event => setModel(event.target.value)} placeholder={DEFAULT_TEXT_MODEL} /></label>
+        <label className="field"><span>Gemini image model</span><input value={imageModel} onChange={event => setImageModel(event.target.value)} placeholder={DEFAULT_IMAGE_MODEL} /></label>
+        <button className="generate-button" type="submit" disabled={!apiKey.trim() || state.status === 'loading'}><span>{state.status === 'loading' ? 'Saving…' : gemini.configured ? 'Replace Gemini key' : 'Save Gemini key'}</span><small>AES-256-GCM encrypted server storage</small></button>
       </form>
 
       <div className="admin-actions-row">
-        <button className="ghost-button" type="button" disabled={!gemini.configured || state.status === 'loading'} onClick={handleRemove}>Remove stored key</button>
+        <button className="ghost-button" type="button" disabled={!gemini.configured || state.status === 'loading'} onClick={handleRemove}>Remove stored Gemini key</button>
         <button className="ghost-button" type="button" onClick={handleLogout}>Sign out</button>
       </div>
 
       {state.message && <div className={`admin-message ${state.status}`}>{state.message}</div>}
-
-      <div className="admin-security-note"><strong>Security behaviour</strong><p>The key is encrypted on the server, excluded from Git and returned only as a masked suffix. It is active for advisory text generation now, and the saved image-model setting is ready for the Gemini image-generation provider we add next.</p></div>
+      <div className="admin-security-note"><strong>Replicate token security</strong><p>The primary token is read only from the server-side <code>REPLICATE_API_TOKEN</code> environment variable. It is never sent to the browser or committed to GitHub.</p></div>
     </section>
   )
 }
