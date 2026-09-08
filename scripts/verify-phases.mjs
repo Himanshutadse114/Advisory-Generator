@@ -7,8 +7,10 @@ import { BRAND_PROFILES, getBrandProfile } from '../src/data/brands.js'
 import { createEditorState, updateLayerState } from '../src/lib/editorState.js'
 import { evaluateAdvisory } from '../src/lib/qualityChecker.js'
 import { ADVISORY_RESPONSE_SCHEMA } from '../server/advisoryPrompt.js'
-import { selectReference } from '../server/referenceSelector.js'
+import { selectReference, selectReferences } from '../server/referenceSelector.js'
 import { buildReferenceAdvisoryPrompt } from '../server/visualPromptBuilder.js'
+import { createFallbackBlueprint, normaliseBlueprint, HYBRID_CANVAS } from '../server/layoutBlueprint.js'
+import { buildHybridArtworkPrompt } from '../server/hybridArtworkPrompt.js'
 
 assert.equal(advisoryReferences.length, 25, 'Reference library should contain every approved advisory image.')
 for (const reference of advisoryReferences) {
@@ -51,18 +53,25 @@ assert.equal(ADVISORY_RESPONSE_SCHEMA.properties.sectionTwoPoints.maxItems, 4)
 
 const qrReference = selectReference({ topic: 'QR Code Phishing', referenceId: 'auto' })
 assert.equal(qrReference.category, 'Phishing & Messaging', 'QR phishing should use the phishing reference family.')
+const qrReferences = selectReferences({ topic: 'QR Code Phishing', referenceId: 'auto', limit: 3 })
+assert.equal(qrReferences.length, 3, 'Hybrid generation should receive multiple approved style references.')
 const manualReference = selectReference({ topic: 'Anything', referenceId: advisoryReferences[0].id })
 assert.equal(manualReference.id, advisoryReferences[0].id, 'Manual reference selection must override auto ranking.')
 
-const imagePrompt = buildReferenceAdvisoryPrompt({
-  advisory: prepared.advisory,
-  reference: qrReference,
-  similarity: 'medium',
-  concept: 'scenario'
-})
+const imagePrompt = buildReferenceAdvisoryPrompt({ advisory: prepared.advisory, reference: qrReference, similarity: 'medium', concept: 'scenario' })
 assert.ok(imagePrompt.includes(prepared.advisory.title), 'Visual prompt must include the new advisory title.')
 assert.ok(imagePrompt.includes(qrReference.title), 'Visual prompt must identify the approved reference direction.')
 assert.ok(/do not copy/i.test(imagePrompt), 'Prompt must explicitly tell the model not to copy the reference.')
 assert.ok(/fresh composition/i.test(imagePrompt), 'Prompt must require a fresh composition in the same design family.')
 
-console.log('All phase and reference-guided AI logic checks passed.')
+const fallbackBlueprint = createFallbackBlueprint(qrReference)
+assert.deepEqual(fallbackBlueprint.canvas, HYBRID_CANVAS)
+const blueprint = normaliseBlueprint({ layers: { title: { x: -100, y: -100, w: 5000, h: 130, fontSize: 200 } } }, qrReference)
+assert.ok(blueprint.layers.title.x >= 24 && blueprint.layers.title.y >= 24, 'Hybrid blueprint must clamp layers to safe canvas bounds.')
+assert.ok(blueprint.layers.title.fontSize <= 80, 'Hybrid blueprint must clamp unsafe title sizing.')
+const artworkPrompt = buildHybridArtworkPrompt({ advisory: prepared.advisory, blueprint: fallbackBlueprint, references: qrReferences, similarity: 'medium', concept: 'balanced' })
+assert.ok(/DO NOT RENDER ANY WORDS/i.test(artworkPrompt), 'Hybrid artwork prompt must prohibit raster text.')
+assert.ok(/reserved text zones/i.test(artworkPrompt), 'Hybrid artwork prompt must reserve clean areas for editable text.')
+assert.ok(artworkPrompt.includes(prepared.advisory.title), 'Hybrid artwork must be directed by the advisory topic.')
+
+console.log('All classic, reference-guided and hybrid editable advisory logic checks passed.')
