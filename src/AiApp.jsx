@@ -113,7 +113,7 @@ export default function AiApp({ onOpenClassic }) {
                   <label className="field"><span>Creative direction</span><select value={concept} onChange={event => setConcept(event.target.value)}>{CONCEPTS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
                 </div>
 
-                <button className="ai-generate-button" type="button" onClick={() => generate()} disabled={!topic.trim() || state.status === 'loading'}><span>{state.status === 'loading' ? 'Generating complete advisory…' : 'Generate AI advisory'}</span><small>Replicate copy + approved reference + GPT Image 1.5</small></button>
+                <button className="ai-generate-button" type="button" onClick={() => generate()} disabled={!topic.trim() || state.status === 'loading'}><span>{state.status === 'loading' ? 'Generating complete advisory…' : 'Generate AI advisory'}</span><small>Replicate copy + approved reference + GPT Image 2</small></button>
                 <button className="classic-generate-link" type="button" onClick={onOpenClassic}>Need fully editable vector text? Open the structured SVG editor instead.</button>
               </div>
 
@@ -148,7 +148,7 @@ export default function AiApp({ onOpenClassic }) {
             />
           </div>
 
-          <div className="statusbar"><span>Replicate</span><span>{result?.textModel || 'meta/meta-llama-3-8b-instruct'}</span><span>{result?.imageModel || 'openai/gpt-image-1.5'}</span><span>{result ? result.reference?.title : 'Awaiting generation'}</span></div>
+          <div className="statusbar"><span>Replicate</span><span>{result?.textModel || 'meta/meta-llama-3-8b-instruct'}</span><span>{result?.imageModel || 'openai/gpt-image-2'}</span><span>{result ? result.reference?.title : 'Awaiting generation'}</span></div>
         </section>
       </main>
     </div>
