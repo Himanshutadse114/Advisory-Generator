@@ -36,14 +36,23 @@ function scoreReference(reference, topic, category) {
   return score
 }
 
-export function selectReference({ topic, referenceId }) {
-  if (referenceId && referenceId !== 'auto') {
-    const selected = advisoryReferences.find(item => item.id === referenceId)
-    if (selected) return selected
-  }
-
+export function selectReferences({ topic, referenceId, limit = 3 }) {
   const category = inferCategory(topic)
-  return advisoryReferences
+  const ranked = advisoryReferences
     .map(reference => ({ ...reference, score: scoreReference(reference, topic, category) }))
-    .sort((a, b) => b.score - a.score)[0] || advisoryReferences[0]
+    .sort((a, b) => b.score - a.score)
+
+  const selected = referenceId && referenceId !== 'auto'
+    ? advisoryReferences.find(item => item.id === referenceId)
+    : null
+
+  const ordered = selected
+    ? [selected, ...ranked.filter(item => item.id !== selected.id)]
+    : ranked
+
+  return ordered.slice(0, Math.max(1, Math.min(Number(limit) || 3, 4)))
+}
+
+export function selectReference(input) {
+  return selectReferences(input)[0] || advisoryReferences[0]
 }
